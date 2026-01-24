@@ -1,0 +1,33 @@
+wx:
+  uniapp:
+    appid: wxd24ab768b910ae57
+    secret: 50f7f07419e8fdb360cf80a010cb11fb
+sa-token:
+  token-name: satoken
+  timeout: 2592000
+  token-style: uuid
+  is-concurrent: false
+  is-share: false
+  is-log: true
+  active-timeout: -1
+
+spring:
+  datasource:
+    url: jdbc:mysql://119.91.238.231:3306/temporary_schema?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+    username: root
+    password: Root123456
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  ai:
+    dashscope:
+      api-key: ${DASHSCOPE_API_KEY}
+  application:
+    name: weather-forecast
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    db-config:
+      id-type: auto
+server:
+  port: 8080

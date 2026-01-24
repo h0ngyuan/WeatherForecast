@@ -1,5 +1,6 @@
 package com.wf;
 
+import cn.dev33.satoken.annotation.SaCheckLogin;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 

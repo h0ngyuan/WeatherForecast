@@ -1,0 +1,53 @@
+package com.wf.utils;
+
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.concurrent.TimeUnit;
+
+public class TimeUtils {
+
+    private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
+    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+
+    //时间校齐工具
+    private static LocalDateTime alignToHour(LocalDateTime dt) {
+        return dt.withMinute(0).withSecond(0).withNano(0);
+    }
+
+    /**
+     * 获取当前时间
+     */
+    public static String getCurrentFormatTime() {
+        return alignToHour(LocalDateTime.now()).format(FORMATTER);
+    }
+
+    /**
+     * 获取之前时间
+     */
+    public static String acquirePastFormatTime(long amount, TimeUnit unit) {
+        LocalDateTime now = alignToHour(LocalDateTime.now());
+        LocalDateTime past = switch (unit) {
+            case HOURS -> now.minusHours(amount);
+            case MINUTES -> now.minusMinutes(amount);
+            case DAYS -> now.minusDays(amount);
+            default -> throw new IllegalArgumentException("不支持这种时间单位: " + unit);
+        };
+        return past.format(FORMATTER);
+    }
+
+    /**
+     * 获取特定时间
+     */
+    public static String getHistoryWindowStart(String predictionStartTime, int encoderLengthInHours) {
+        LocalDateTime start = alignToHour(LocalDateTime.parse(predictionStartTime, FORMATTER));
+        return start.minusHours(encoderLengthInHours).format(FORMATTER);
+    }
+
+    public static void main(String[] args) {
+        System.out.println(getCurrentFormatTime());
+        System.out.println(acquirePastFormatTime(168,TimeUnit.HOURS));
+        System.out.println(getHistoryWindowStart(acquirePastFormatTime(168,TimeUnit.HOURS),5));
+    }
+
+}
