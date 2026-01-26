@@ -1,5 +1,7 @@
 package com.wf.service;
 
+import com.wf.object.query.LoginQuery;
+
 public interface WxService {
-    String login(String code);
+    String login(LoginQuery query);
 }

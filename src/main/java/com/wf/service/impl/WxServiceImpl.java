@@ -1,10 +1,9 @@
 package com.wf.service.impl;
 
 import cn.binarywang.wx.miniapp.api.WxMaService;
-import cn.binarywang.wx.miniapp.bean.WxMaJscode2SessionResult;
 import cn.dev33.satoken.stp.StpUtil;
+import com.wf.object.query.LoginQuery;
 import com.wf.service.WxService;
-import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -15,13 +14,14 @@ public class WxServiceImpl implements WxService {
     private WxMaService wxMaService;
 
     @Override
-    public String login(String code) {
+    public String login(LoginQuery query) {
         try {
 //            这边作为模拟，暂不调用微信开发者工具获取测试code
 //            WxMaJscode2SessionResult session = wxMaService.getUserService().getSessionInfo(code);
 //            String openid = session.getOpenid();
 //            StpUtil.login(openid);
-            String mockOpenId = code+"aacc";
+            String openId = query.getQtCode();
+            String mockOpenId = openId +"aacc";
             StpUtil.login(mockOpenId);
             return StpUtil.getTokenValue();
         } catch (Exception e) {
