@@ -30,35 +30,36 @@ public class WeatherCodeCache {
     }
 
     private void loadWeatherCodeDict() {
-        try {
-            LambdaQueryWrapper<ParamDataEntity> wrapper = new LambdaQueryWrapper<>();
-            wrapper.eq(ParamDataEntity::getDictType, WEATHER_CODE_DICT_TYPE)
-                    .or()
-                    .eq(ParamDataEntity::getDictTypeId, WEATHER_CODE_DICT_TYPE_ID)
-                    .eq(ParamDataEntity::getAvailable, 1);
-
-            List<ParamDataEntity> dictList = paramDataMapper.selectList(wrapper);
-
-            weatherCodeMap.clear();
-            for (ParamDataEntity entity : dictList) {
-                if (entity.getDictKey() != null && entity.getDictValue() != null) {
-                    Integer code = Integer.parseInt(entity.getDictKey());
-                    weatherCodeMap.put(code, entity.getDictValue());
-                }
-            }
-
-            log.info("天气代码码表加载完成，共加载 {} 条数据", weatherCodeMap.size());
-
-        } catch (Exception e) {
-            log.error("加载天气代码码表失败", e);
-        }
+//        try {
+//            LambdaQueryWrapper<ParamDataEntity> wrapper = new LambdaQueryWrapper<>();
+//            wrapper.eq(ParamDataEntity::getDictType, WEATHER_CODE_DICT_TYPE)
+//                    .or()
+//                    .eq(ParamDataEntity::getDictTypeId, WEATHER_CODE_DICT_TYPE_ID)
+//                    .eq(ParamDataEntity::getAvailable, 1);
+//
+//            List<ParamDataEntity> dictList = paramDataMapper.selectList(wrapper);
+//
+//            weatherCodeMap.clear();
+//            for (ParamDataEntity entity : dictList) {
+//                if (entity.getDictKey() != null && entity.getDictValue() != null) {
+//                    Integer code = Integer.parseInt(entity.getDictKey());
+//                    weatherCodeMap.put(code, entity.getDictValue());
+//                }
+//            }
+//
+//            log.info("天气代码码表加载完成，共加载 {} 条数据", weatherCodeMap.size());
+//
+//        } catch (Exception e) {
+//            log.error("加载天气代码码表失败", e);
+//        }
     }
 
     public static String getWeatherCodeValue(Integer code) {
-        if (code == null) {
-            return null;
-        }
-        return weatherCodeMap.get(code);
+//        if (code == null) {
+//            return null;
+//        }
+//        return weatherCodeMap.get(code);
+        return null;
     }
 
     public static void reload() {

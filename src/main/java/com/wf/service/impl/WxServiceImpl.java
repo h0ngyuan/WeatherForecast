@@ -20,7 +20,7 @@ public class WxServiceImpl implements WxService {
 //            WxMaJscode2SessionResult session = wxMaService.getUserService().getSessionInfo(code);
 //            String openid = session.getOpenid();
 //            StpUtil.login(openid);
-            String openId = query.getQtCode();
+            String openId = query.getOpenId();
             String mockOpenId = openId +"aacc";
             StpUtil.login(mockOpenId);
             return StpUtil.getTokenValue();

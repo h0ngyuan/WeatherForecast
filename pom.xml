@@ -109,15 +109,9 @@
             <version>4.7.0</version>
         </dependency>
         <dependency>
-            <groupId>org.springblade</groupId>
-            <artifactId>blade-starter-mybatis</artifactId>
-            <version>4.7.0</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.springblade</groupId>
-                    <artifactId>blade-core-secure</artifactId>
-                </exclusion>
-            </exclusions>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
+            <version>3.5.8</version> <!-- 支持 Spring Boot 3.x -->
         </dependency>
         <dependency>
             <groupId>cn.dev33</groupId>
@@ -179,23 +173,23 @@
                     <encoding>UTF-8</encoding>
                 </configuration>
             </plugin>
-            <plugin>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-maven-plugin</artifactId>
-                <version>${spring-boot.version}</version>
-                <configuration>
-                    <mainClass>com.wf.WeatherForecastApplication</mainClass>
-                    <skip>true</skip>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>repackage</id>
-                        <goals>
-                            <goal>repackage</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
+<!--            <plugin>-->
+<!--                <groupId>org.springframework.boot</groupId>-->
+<!--                <artifactId>spring-boot-maven-plugin</artifactId>-->
+<!--                <version>${spring-boot.version}</version>-->
+<!--                <configuration>-->
+<!--                    <mainClass>com.wf.WeatherForecastApplication</mainClass>-->
+<!--                    <skip>true</skip>-->
+<!--                </configuration>-->
+<!--                <executions>-->
+<!--                    <execution>-->
+<!--                        <id>repackage</id>-->
+<!--                        <goals>-->
+<!--                            <goal>repackage</goal>-->
+<!--                        </goals>-->
+<!--                    </execution>-->
+<!--                </executions>-->
+<!--            </plugin>-->
         </plugins>
     </build>
 
