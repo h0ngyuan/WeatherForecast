@@ -7,7 +7,7 @@ import com.wf.object.entity.PredictWeatherCodeEntity;
 import com.wf.object.entity.WeatherDataEntity;
 import com.wf.object.query.WeatherCodeQuery;
 import com.wf.service.WeatherForecastService;
-import com.wf.agent.tools.wpTool.WeatherPredictionTool;
+import com.wf.agent.tool.wpTool.WeatherPredictionTool;
 
 import com.wf.utils.WeatherCodeCache;
 import lombok.extern.slf4j.Slf4j;

@@ -1,4 +1,4 @@
-package com.wf.agent.tools.wpTool;
+package com.wf.agent.tool.wpTool;
 
 import com.wf.object.query.WeatherCodeQuery;
 

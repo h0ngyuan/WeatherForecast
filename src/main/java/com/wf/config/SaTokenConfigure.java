@@ -17,6 +17,7 @@ public class SaTokenConfigure implements WebMvcConfigurer {
 
                 .excludePathPatterns(
                         "/wx/login",
+                        "/weather/query",
                         "/error",
                         "/doc.html",
                         "/webjars/**");
