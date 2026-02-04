@@ -1,5 +1,9 @@
 package com.wf.service;
 
-public interface ParamService {
+import com.wf.object.entity.ParamDataEntity;
 
+import java.util.List;
+
+public interface ParamService {
+    List<ParamDataEntity> getCities();
 }

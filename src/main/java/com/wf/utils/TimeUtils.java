@@ -46,10 +46,33 @@ public class TimeUtils {
     }
 
     /**
+     * 获取之后时间
+     */
+    public static String acquireFutureFormatTime(long amount, TimeUnit unit) {
+        LocalDateTime now = alignToHour(LocalDateTime.now());
+        LocalDateTime past = switch (unit) {
+            case HOURS -> now.plusHours(amount);
+            case MINUTES -> now.plusMinutes(amount);
+            case DAYS -> now.plusDays(amount);
+            default -> throw new IllegalArgumentException("不支持这种时间单位: " + unit);
+        };
+        return past.format(FORMATTER);
+    }
+
+    /**
      * 获取之前时间(Hour)
      */
     public static String acquirePastFormatHourTime(long amount, TimeUnit unit) {
         String s = acquirePastFormatTime(amount, unit);
+        return s.substring(0,10);
+    }
+
+
+    /**
+     * 获取之后时间(Hour)
+     */
+    public static String acquireFutureFormatHourTime(long amount, TimeUnit unit) {
+        String s = acquireFutureFormatTime(amount, unit);
         return s.substring(0,10);
     }
 

@@ -8,5 +8,5 @@ import lombok.RequiredArgsConstructor;
 @AllArgsConstructor
 public class NormalizationResult {
     private String normalizedQuestion;
-    private String locationInfo;
+    private String requestInfo;
 }

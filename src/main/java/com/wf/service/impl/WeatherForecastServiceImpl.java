@@ -24,7 +24,7 @@ import java.util.List;
 
 @Slf4j
 @Service
-public class WeatherForecastServiceImpl implements WeatherForecastService, WeatherPredictionTool {
+public class WeatherForecastServiceImpl implements WeatherForecastService {
 
     @Autowired
     private WeatherDataMapper weatherDataMapper;
@@ -32,7 +32,6 @@ public class WeatherForecastServiceImpl implements WeatherForecastService, Weath
     @Autowired
     private PredictWeatherCodeMapper predictWeatherCodeMapper;
 
-    @Tool(description = "获取规定时间内的天气码值")
     @Override
     public List<String> acquireWeatherCodeValueByRangeTime(WeatherCodeQuery query) {
         //TODO 这边其实不完善，如果时间超出了规定最大时间（这边默认最大是三天）会怎么样呢？
@@ -117,15 +116,4 @@ public class WeatherForecastServiceImpl implements WeatherForecastService, Weath
         return result;
     }
 
-    @Tool(description = "预测二十四小时内的天气码值")
-    @Override
-    public List<Integer> predictNext24Hours(@ToolParam(description = "获取要预测的位置和时间范围") WeatherCodeQuery query) {
-        return Collections.emptyList();
-    }
-
-    @Tool(description = "预测七十二小时内的天气码值")
-    @Override
-    public List<Integer> predictNext72Hours(@ToolParam(description = "获取要预测的位置和时间范围") WeatherCodeQuery query) {
-        return Collections.emptyList();
-    }
 }
