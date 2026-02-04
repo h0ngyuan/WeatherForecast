@@ -22,6 +22,12 @@ spring:
       api-key: ${DASHSCOPE_API_KEY}
   application:
     name: weather-forecast
+milvus:
+  uri: https://in03-50c4bee8142f395.serverless.aws-eu-central-1.cloud.zilliz.com
+  token: 8e30a9720b997d189fd5b12a26c07ef5f2e6269da94bd4db40bcfa9bbdc2874bedd0c2e0cd167566ec44e484f4264894ca109a6d
+  collection:
+    name: wf_general_acknowledge
+    dimension: 1024
 mybatis-plus:
   mapper-locations: classpath:mapper/*.xml
   configuration:

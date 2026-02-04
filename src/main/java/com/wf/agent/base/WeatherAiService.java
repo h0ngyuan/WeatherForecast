@@ -5,12 +5,12 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.stereotype.Service;
 
 @Service
-public class AiScoringService {
+public class WeatherAiService {
 
     private final ChatClient chatClient;
     private final WeatherPromptProvider promptProvider;
 
-    public AiScoringService(ChatClient.Builder chatClientBuilder, WeatherPromptProvider promptProvider) {
+    public WeatherAiService(ChatClient.Builder chatClientBuilder, WeatherPromptProvider promptProvider) {
         this.chatClient = chatClientBuilder.build();
         this.promptProvider = promptProvider;
     }
@@ -28,6 +28,13 @@ public class AiScoringService {
     public double scoreAnswer(String question, String answer) {
         String prompt = promptProvider.getAnswerQualityScorePrompt(question, answer);
         return parseScore(chatClient.prompt().user(prompt).call().content());
+    }
+
+    public NormalizationResult normalize(String question) {
+        String prompt = promptProvider.getNormalizationPrompt(question);
+        String response = chatClient.prompt().user(prompt).call().content();
+
+        return new NormalizationResult(response.trim(), null);
     }
 
     private double parseScore(String raw) {

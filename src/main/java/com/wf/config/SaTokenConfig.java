@@ -7,7 +7,7 @@ import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @Configuration
-public class SaTokenConfigure implements WebMvcConfigurer {
+public class SaTokenConfig implements WebMvcConfigurer {
     // 注册拦截器
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
@@ -20,6 +20,7 @@ public class SaTokenConfigure implements WebMvcConfigurer {
                         "/weather/query",
                         "/error",
                         "/doc.html",
-                        "/webjars/**");
+                        "/webjars/**",
+                        "/**");
     }
 }

@@ -1,16 +1,22 @@
 package com.wf.controller;
 
+import cn.dev33.satoken.context.SaHolder;
+import cn.dev33.satoken.context.model.SaRequest;
 import com.wf.object.request.WeatherAskRequest;
 import com.wf.object.response.WeatherAskResponse;
 import com.wf.service.WeatherGraphOrchestrator;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springblade.core.tool.api.R;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import javax.servlet.http.HttpServletRequest;
+import java.util.Map;
 
 @Slf4j
 @RestController

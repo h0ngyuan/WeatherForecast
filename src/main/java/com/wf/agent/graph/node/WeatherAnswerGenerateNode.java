@@ -2,7 +2,7 @@ package com.wf.agent.graph.node;
 
 import com.alibaba.cloud.ai.graph.OverAllState;
 import com.alibaba.cloud.ai.graph.action.NodeAction;
-import com.wf.agent.base.AiScoringService;
+import com.wf.agent.base.WeatherAiService;
 import com.wf.agent.constants.WeatherGraphConstants;
 import org.apache.log4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,10 +13,10 @@ import java.util.Map;
 @Component
 public class WeatherAnswerGenerateNode implements NodeAction {
 
-    private final AiScoringService aiScoringService;
+    private final WeatherAiService weatherAiService;
 
-    public WeatherAnswerGenerateNode(AiScoringService aiScoringService) {
-        this.aiScoringService = aiScoringService;
+    public WeatherAnswerGenerateNode(WeatherAiService weatherAiService) {
+        this.weatherAiService = weatherAiService;
     }
 
     @Override
@@ -24,8 +24,8 @@ public class WeatherAnswerGenerateNode implements NodeAction {
         String question = state.value(WeatherGraphConstants.KEY_QUESTION, "");
         Integer loopCount = state.value(WeatherGraphConstants.KEY_LOOP_COUNT, 1);
 
-        String answer = aiScoringService.generateAnswer(question);
-        double qualityScore = aiScoringService.scoreAnswer(question, answer);
+        String answer = weatherAiService.generateAnswer(question);
+        double qualityScore = weatherAiService.scoreAnswer(question, answer);
 
         loopCount++;
         String nextAction = (qualityScore >= WeatherGraphConstants.THRESHOLD_QUALITY ||

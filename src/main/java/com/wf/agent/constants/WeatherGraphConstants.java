@@ -7,6 +7,13 @@ public class WeatherGraphConstants {
     public static final String KEY_QUALITY_SCORE = "qualityScore";
     public static final String KEY_LOOP_COUNT = "loopCount";
     public static final String KEY_NEXT_ACTION = "nextAction";
+    public static final String KEY_TRANSFORMED_QUESTION = "transformedQuestion";
+    public static final String KEY_LOCATION_INFO = "locationInfo";
+
+    public static final String ACTION_NEXT = "next";
+    public static final String ACTION_END = "end";
+    public static final String ACTION_LOOP = "loop";
+    public static final String ACTION_BREAK = "break";
 
     public static final double THRESHOLD_RELEVANCE = 0.6;
     public static final double THRESHOLD_QUALITY = 0.9;
