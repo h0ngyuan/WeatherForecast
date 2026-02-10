@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.wf.mapper.UserInfoMapper;
 import com.wf.object.entity.UserInfoEntity;
+import com.wf.object.query.NotifySettingQuery;
 import com.wf.service.ContactService;
 import com.wf.utils.EmailUtils;
 import com.wf.utils.SMSUtils;
@@ -134,5 +135,65 @@ public class ContactServiceImpl implements ContactService {
             sb.append((int) (Math.random() * 10));
         }
         return sb.toString();
+    }
+
+    @Override
+    public UserInfoEntity getNotifySettings(Long userId) {
+        if (userId == null) {
+            throw new RuntimeException("用户ID不能为空");
+        }
+
+        LambdaQueryWrapper<UserInfoEntity> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(UserInfoEntity::getId, userId);
+        UserInfoEntity user = userInfoMapper.selectOne(wrapper);
+        if (user == null) {
+            throw new RuntimeException("用户不存在");
+        }
+
+        UserInfoEntity result = new UserInfoEntity();
+        result.setPhone(user.getPhone());
+        result.setEmail(user.getEmail());
+        result.setWechatOpenid(user.getWechatOpenid());
+        result.setPhoneNotifyPermission(user.getPhoneNotifyPermission());
+        result.setEmailNotifyPermission(user.getEmailNotifyPermission());
+        result.setWechatNotifyPermission(user.getWechatNotifyPermission());
+
+        return result;
+    }
+
+    @Override
+    public void updateNotifySettings(Long userId, NotifySettingQuery query) {
+        if (userId == null) {
+            throw new RuntimeException("用户ID不能为空");
+        }
+        if (query == null) {
+            throw new RuntimeException("参数不能为空");
+        }
+
+        LambdaQueryWrapper<UserInfoEntity> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(UserInfoEntity::getId, userId);
+        UserInfoEntity user = userInfoMapper.selectOne(wrapper);
+        if (user == null) {
+            throw new RuntimeException("用户不存在");
+        }
+
+        if (query.getWechatNotifyPermission() == 1 && (user.getWechatOpenid() == null || user.getWechatOpenid().isEmpty())) {
+            throw new RuntimeException("未绑定微信，无法开启微信通知权限");
+        }
+        if (query.getEmailNotifyPermission() == 1 && (user.getEmail() == null || user.getEmail().isEmpty())) {
+            throw new RuntimeException("未绑定邮箱，无法开启邮箱通知权限");
+        }
+        if (query.getPhoneNotifyPermission() == 1 && (user.getPhone() == null || user.getPhone().isEmpty())) {
+            throw new RuntimeException("未绑定手机号，无法开启手机号通知权限");
+        }
+
+        LambdaUpdateWrapper<UserInfoEntity> updateWrapper = new LambdaUpdateWrapper<>();
+        updateWrapper.eq(UserInfoEntity::getId, userId);
+        updateWrapper.set(UserInfoEntity::getWechatNotifyPermission, query.getWechatNotifyPermission());
+        updateWrapper.set(UserInfoEntity::getEmailNotifyPermission, query.getEmailNotifyPermission());
+        updateWrapper.set(UserInfoEntity::getPhoneNotifyPermission, query.getPhoneNotifyPermission());
+
+        userInfoMapper.update(null, updateWrapper);
+        log.info("用户通知设置更新成功，userId: {}", userId);
     }
 }

@@ -4,6 +4,7 @@ import com.wf.object.entity.UserInfoEntity;
 import com.wf.object.query.BindContactQuery;
 import com.wf.object.query.CaptchaQuery;
 import com.wf.object.query.LoginQuery;
+import com.wf.object.query.NotifySettingQuery;
 import com.wf.object.query.SendCaptchaQuery;
 import com.wf.service.CaptchaService;
 import com.wf.service.ContactService;
@@ -126,6 +127,22 @@ public class WxController {
     @PostMapping("/sendEmailCaptcha")
     public R<Void> sendEmailCaptcha(@RequestBody SendCaptchaQuery query) {
         contactService.sendEmailCaptcha(query.getEmail());
+        return R.success();
+    }
+
+    @Operation(summary = "获取通知设置", description = "获取用户的联系方式绑定状态和通知权限设置")
+    @GetMapping("/getNotifySettings")
+    public R<UserInfoEntity> getNotifySettings() {
+        Long userId = StpUtil.getLoginIdAsLong();
+        UserInfoEntity settings = contactService.getNotifySettings(userId);
+        return R.data(settings);
+    }
+
+    @Operation(summary = "更新通知设置", description = "批量更新用户的通知权限设置，支持同时更新多个权限")
+    @PostMapping("/updateNotifySettings")
+    public R<Void> updateNotifySettings(@RequestBody NotifySettingQuery query) {
+        Long userId = StpUtil.getLoginIdAsLong();
+        contactService.updateNotifySettings(userId, query);
         return R.success();
     }
 

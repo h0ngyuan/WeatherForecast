@@ -72,6 +72,9 @@ public class PhoneLoginStrategy implements LoginStrategy {
             user.setAccountSource(0);
             user.setRole("USER");
             user.setAvailable(1);
+            user.setWechatNotifyPermission(1);
+            user.setEmailNotifyPermission(1);
+            user.setPhoneNotifyPermission(1);
             userInfoMapper.insert(user);
             log.info("新用户手机号注册，phone: {}", phone);
         }

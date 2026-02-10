@@ -46,6 +46,15 @@ public class UserInfoEntity implements Serializable {
     @Schema(description = "注册时地理位置（如 IP 解析的城市）")
     private String registerLocation;
 
+    @Schema(description = "微信通知权限：1=允许，0=禁止")
+    private Integer wechatNotifyPermission;
+
+    @Schema(description = "邮箱通知权限：1=允许，0=禁止")
+    private Integer emailNotifyPermission;
+
+    @Schema(description = "手机号通知权限：1=允许，0=禁止")
+    private Integer phoneNotifyPermission;
+
     @Schema(description = "是否可用：1=正常，0=禁用/注销")
     @TableLogic
     private Integer available;

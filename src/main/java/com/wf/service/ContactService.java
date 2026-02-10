@@ -1,5 +1,8 @@
 package com.wf.service;
 
+import com.wf.object.entity.UserInfoEntity;
+import com.wf.object.query.NotifySettingQuery;
+
 public interface ContactService {
 
     boolean checkPhoneBound(Long userId);
@@ -13,4 +16,8 @@ public interface ContactService {
     void sendPhoneCaptcha(String phone);
 
     void sendEmailCaptcha(String email);
+
+    UserInfoEntity getNotifySettings(Long userId);
+
+    void updateNotifySettings(Long userId, NotifySettingQuery query);
 }
