@@ -11,7 +11,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.interceptor.TransactionAspectSupport;
 
 import java.util.List;
-
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
@@ -29,7 +28,7 @@ public class WeatherDataTask {
     @Autowired
     private WeatherDataService weatherDataService;
 
-    @Scheduled(cron = "0 0 0 1 * ?")
+    @Scheduled(cron = "5 0 0 1/1 * ? ")
     @Transactional(rollbackFor = Exception.class)
     public void periodicalFetchFormalData() {
         try {
@@ -41,12 +40,29 @@ public class WeatherDataTask {
             List<WeatherDataEntity> weatherDataList = weatherDataService.fetchWeatherData(api);
             weatherDataService.saveWeatherData(weatherDataList);
             
-            log.info("定时任务执行完成，成功保存 {} 条天气数据", weatherDataList.size());
+            log.info("定时任务执行完成，成功保存天气数据");
             
         } catch (Exception e) {
             log.error("气象数据定时任务失败", e);
             TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
             throw new RuntimeException("气象数据定时任务失败", e);
         }
+    }
+
+    @Scheduled(cron = "10 0 0 1/1 * ? ")
+    @Transactional(rollbackFor = Exception.class)
+    public void periodicalFetchPredictedData() {
+        try {
+            log.info("开始执行天气预测定时任务");
+            weatherDataService.predictWeatherData();
+            log.info("天气预测定时任务执行完成");
+        } catch (Exception e) {
+            log.error("天气预测定时任务失败", e);
+            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
+            throw new RuntimeException("天气预测定时任务失败", e);
+        }
+    }
+
+    public static void main(String[] args) {
     }
 }

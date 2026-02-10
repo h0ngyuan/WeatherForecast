@@ -33,6 +33,16 @@ public class WeatherRelevanceJudgeNode implements NodeAction {
         String nextAction = score >= WeatherGraphConstants.THRESHOLD_RELEVANCE ? 
             WeatherGraphConstants.ACTION_NEXT : WeatherGraphConstants.ACTION_END;
         
+        String answer = "";
+        if (score < WeatherGraphConstants.THRESHOLD_RELEVANCE) {
+            answer = "此问题不相干";
+            return Map.of(
+            WeatherGraphConstants.KEY_RELEVANCE_SCORE, score,
+            WeatherGraphConstants.KEY_NEXT_ACTION, nextAction,
+            WeatherGraphConstants.KEY_ANSWER, answer
+        );
+        }
+        
         log.info("判断结果: {} (阈值: {})", nextAction, WeatherGraphConstants.THRESHOLD_RELEVANCE);
         log.info("---------- [judge节点] 执行完成 ----------");
         

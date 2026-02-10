@@ -1,6 +1,6 @@
 package com.wf.service;
 
-import com.wf.entity.MilvusData;
+import com.wf.object.entity.MilvusData;
 
 import java.util.List;
 import java.util.Map;

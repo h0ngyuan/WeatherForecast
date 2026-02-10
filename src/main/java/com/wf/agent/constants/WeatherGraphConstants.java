@@ -8,7 +8,9 @@ public class WeatherGraphConstants {
     public static final String KEY_LOOP_COUNT = "loopCount";
     public static final String KEY_NEXT_ACTION = "nextAction";
     public static final String KEY_TRANSFORMED_QUESTION = "transformedQuestion";
-    public static final String KEY_LOCATION_INFO = "locationInfo";
+    public static final String KEY_WEATHER_CODE_QUERY = "weatherCodeQuery";
+    public static final String KEY_FORECAST_RESULT = "forecastResult";
+    public static final String KEY_EXECUTION_RECORDS = "executionRecords";
 
     public static final String ACTION_NEXT = "next";
     public static final String ACTION_END = "end";

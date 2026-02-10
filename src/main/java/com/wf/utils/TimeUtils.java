@@ -6,7 +6,7 @@ import java.util.concurrent.TimeUnit;
 
 public class TimeUtils {
 
-    private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    public static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
@@ -87,6 +87,8 @@ public class TimeUtils {
 
 
     public static void main(String[] args) {
+        System.out.println(acquirePastFormatTime(2,TimeUnit.DAYS));
+        System.out.println("下面的不用管");
         System.out.println(getCurrentFormatTime());
         System.out.println(getCurrentFormatHourTime());
         System.out.println(acquirePastFormatTime(168,TimeUnit.HOURS));

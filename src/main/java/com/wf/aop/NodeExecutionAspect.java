@@ -1,8 +1,7 @@
-package com.wf.agent.aop;
+package com.wf.aop;
 
 import com.alibaba.cloud.ai.graph.OverAllState;
-import com.alibaba.cloud.ai.graph.action.NodeAction;
-import com.wf.agent.state.WeatherState;
+import com.wf.agent.constants.WeatherGraphConstants;
 import com.wf.object.entity.NodeExecutionRecordEntity;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
@@ -11,7 +10,8 @@ import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Pointcut;
 import org.springframework.stereotype.Component;
 
-import java.util.Map;
+import java.util.ArrayList;
+import java.util.List;
 
 @Slf4j
 @Aspect
@@ -31,8 +31,15 @@ public class NodeExecutionAspect {
         Object result = null;
         String output = "";
         Exception exception = null;
+        String input = "";
 
         try {
+            Object[] args = joinPoint.getArgs();
+            if (args.length > 0 && args[0] instanceof OverAllState) {
+                OverAllState state = (OverAllState) args[0];
+                input = formatInput(state);
+            }
+
             result = joinPoint.proceed();
             output = formatOutput(result);
             log.info("节点执行完成: {}, 耗时: {}ms, 输出: {}", nodeName, System.currentTimeMillis() - startTime, output);
@@ -46,11 +53,8 @@ public class NodeExecutionAspect {
                 Object[] args = joinPoint.getArgs();
                 if (args.length > 0 && args[0] instanceof OverAllState) {
                     OverAllState state = (OverAllState) args[0];
-                    Object weatherStateObj = state.value("weatherState");
-                    if (weatherStateObj instanceof WeatherState) {
-                        WeatherState weatherState = (WeatherState) weatherStateObj;
-                        weatherState.recordNodeExecution(nodeName, output);
-                    }
+                    List<NodeExecutionRecordEntity> executionRecords = state.value(WeatherGraphConstants.KEY_EXECUTION_RECORDS, new ArrayList<>());
+                    executionRecords.add(new NodeExecutionRecordEntity(nodeName, input, output));
                 }
             } catch (Exception e) {
                 log.warn("记录节点执行结果失败: {}", e.getMessage());
@@ -60,13 +64,19 @@ public class NodeExecutionAspect {
         return result;
     }
 
+    private String formatInput(OverAllState state) {
+        String question = state.value(WeatherGraphConstants.KEY_QUESTION, "");
+        String transformedQuestion = state.value(WeatherGraphConstants.KEY_TRANSFORMED_QUESTION, "");
+        String weatherCodeQuery = state.value(WeatherGraphConstants.KEY_WEATHER_CODE_QUERY, "");
+        Integer loopCount = state.value(WeatherGraphConstants.KEY_LOOP_COUNT, 1);
+
+        return String.format("question=%s, transformedQuestion=%s, weatherCodeQuery=%s, loopCount=%d", 
+            question, transformedQuestion, weatherCodeQuery, loopCount);
+    }
+
     private String formatOutput(Object result) {
         if (result == null) {
             return "null";
-        }
-        if (result instanceof Map) {
-            Map<?, ?> map = (Map<?, ?>) result;
-            return map.toString();
         }
         return result.toString();
     }

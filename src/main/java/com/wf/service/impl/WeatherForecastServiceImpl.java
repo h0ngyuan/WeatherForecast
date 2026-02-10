@@ -7,19 +7,15 @@ import com.wf.object.entity.PredictWeatherCodeEntity;
 import com.wf.object.entity.WeatherDataEntity;
 import com.wf.object.query.WeatherCodeQuery;
 import com.wf.service.WeatherForecastService;
-import com.wf.agent.tool.wpTool.WeatherPredictionTool;
 
 import com.wf.utils.WeatherCodeCache;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.tool.annotation.Tool;
-import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 @Slf4j

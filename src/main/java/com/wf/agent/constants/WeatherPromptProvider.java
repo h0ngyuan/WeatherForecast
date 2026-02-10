@@ -20,7 +20,7 @@ public class WeatherPromptProvider {
             """.formatted(question);
     }
 
-    public String getAnswerGenerationPrompt(String originalQuestion, String normalizedQuestion, String locationInfo) {
+    public String getAnswerGenerationPrompt(String originalQuestion, String normalizedQuestion, String forecastResult) {
         return """
             你是一个专业的气象专家，请根据以下信息给出准确、简洁、自然的回答。
 
@@ -28,18 +28,17 @@ public class WeatherPromptProvider {
 
             规范化问题（包含精确时间范围）: %s
 
-            位置信息: %s
+            天气预测结果: %s
 
             回答要求:
             1. 回答要自然流畅，符合用户的原始提问方式
-            2. 使用规范化问题中的精确时间信息来查询天气数据
-            3. 根据天气数据给出具体的建议或回答
-            4. 如果用户问的是活动建议（如"能不能晒被子"），要给出明确的建议
-            5. 回答要简洁明了，不要过于冗长
-            6. 保持友好和专业的语气
+            2. 基于天气预测结果给出具体的建议或回答
+            3. 如果用户问的是活动建议（如"能不能晒被子"），要给出明确的建议
+            4. 回答要简洁明了，不要过于冗长
+            5. 保持友好和专业的语气
 
             请给出回答:
-            """.formatted(originalQuestion, normalizedQuestion, locationInfo != null ? locationInfo : "未指定");
+            """.formatted(originalQuestion, normalizedQuestion, forecastResult != null ? forecastResult : "未获取到天气预测数据");
     }
 
     public String getAnswerQualityScorePrompt(String question, String answer) {
@@ -167,5 +166,52 @@ public class WeatherPromptProvider {
 
             请输出规范化后的JSON:
             """.formatted(question);
+    }
+
+    public String getWeatherForecastPrompt(String weatherCodeQuery) {
+        return """
+            你是一个天气分析专家。请根据以下查询信息，调用天气预测工具获取数据。
+            
+            查询信息: %s
+            
+            请按照以下步骤操作：
+            1. 调用 acquireWeatherCodeValueByRangeTime 工具获取天气数据
+            2. 直接返回工具返回的原始数据，不要进行任何转化或分析
+            
+            返回格式：
+            - 直接返回工具获取到的天气码列表，按逗号分隔
+            - 不要添加任何描述或解释
+            
+            示例：
+            - 工具返回 [100, 100, 100] -> "100,100,100"
+            - 工具返回 [100, 101, 100] -> "100,101,100"
+            
+            请直接返回天气码列表，不要包含其他解释。
+            """.formatted(weatherCodeQuery);
+    }
+
+    public String getForecastTransformPrompt(String forecastResult) {
+        return """
+            你是一个天气语义转化专家。请将以下天气预测数据转化为更自然、更易理解的描述。
+
+            原始预测数据: %s
+            
+            请按照以下步骤操作：
+            1. 分析原始数据中的天气码序列
+            2. 调用 getWeatherCodes 工具将天气码转换为可读的天气描述
+            3. 根据转换后的天气描述和时间序列，生成自然的语言表达
+            
+            转化规则：
+            - 将相同天气状况的时间段合并描述
+            - 使用自然的时间表达方式（如"9点到10点"、"10点到14点"等）
+            - 描述要简洁流畅，符合用户阅读习惯
+            
+            示例：
+            - "100,100,100" -> 调用工具获得["晴天","晴天","晴天"] -> "全天天气晴朗"
+            - "100,100,101,100,100,100" -> 调用工具获得["晴天","晴天","多云","晴天","晴天","晴天"] -> "上午到下午天气晴朗，傍晚转多云"
+            - "9点到10点是阴天，10点到14点是晴天，14点到15点是晴天" -> "9点到10点是阴天，10点到15点是晴天"
+            
+            请直接返回转化后的描述，不要包含其他解释。
+            """.formatted(forecastResult);
     }
 }

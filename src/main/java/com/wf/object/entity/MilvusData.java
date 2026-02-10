@@ -1,4 +1,4 @@
-package com.wf.entity;
+package com.wf.object.entity;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

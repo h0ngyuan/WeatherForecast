@@ -38,19 +38,12 @@ public class WeatherGraphOrchestratorImpl implements WeatherGraphOrchestrator {
         }
 
         OverAllState state = result.get();
+        String answer = state.value(WeatherGraphConstants.KEY_ANSWER, "");
         Double relevanceScore = state.value(WeatherGraphConstants.KEY_RELEVANCE_SCORE, 0.0);
-        log.info("相关性评分: {}", relevanceScore);
-
-        if (relevanceScore < WeatherGraphConstants.THRESHOLD_RELEVANCE) {
-            log.warn("问题相关性不足，阈值: {}, 实际: {}", WeatherGraphConstants.THRESHOLD_RELEVANCE, relevanceScore);
-            return new WeatherAskResponse("此问题不相干", false, relevanceScore, null, null);
-        }
-
-        String answer = state.value(WeatherGraphConstants.KEY_ANSWER, "未能生成有效回答");
         Double qualityScore = state.value(WeatherGraphConstants.KEY_QUALITY_SCORE, 0.0);
         Integer loopCount = state.value(WeatherGraphConstants.KEY_LOOP_COUNT, 1);
 
-        log.info("生成答案成功");
+        log.info("相关性评分: {}", relevanceScore);
         log.info("质量评分: {}, 循环次数: {}", qualityScore, loopCount);
         log.info("最终答案: {}", answer);
         log.info("========== WeatherGraph 处理完成 ==========");

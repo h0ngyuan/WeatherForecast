@@ -9,4 +9,8 @@ public interface WeatherDataService {
     List<WeatherDataEntity> fetchWeatherData(String apiUrl);
 
     void saveWeatherData(List<WeatherDataEntity> weatherDataList);
+
+    void manualFetchWeatherData(Integer beginTime,Integer endTime);
+
+    void predictWeatherData();
 }

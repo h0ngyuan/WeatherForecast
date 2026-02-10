@@ -11,7 +11,7 @@ import java.io.Serializable;
 import java.time.LocalDateTime;
 
 @Data
-@TableName("PREDICTED_WEATHER_DATA")
+@TableName("PREDICTED_WEATHER_CODE_DATA")
 @Schema(description = "预测天气现象数据表")
 public class PredictWeatherCodeEntity implements Serializable {
 

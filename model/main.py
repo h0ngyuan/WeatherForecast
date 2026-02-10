@@ -1,7 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import Dict, List, Any
-import torch
 import pickle
 import numpy as np
 import pandas as pd
@@ -12,7 +11,8 @@ from pytorch_forecasting import TemporalFusionTransformer, TimeSeriesDataSet
 
 app = FastAPI(title="成都天气 WMO 预测验证 API", version="1.0")
 
-MODEL_DIR = r"E:\weathercode\oneDay"
+# 使用相对路径，方便服务器部署
+MODEL_DIR = os.getenv("MODEL_DIR", os.path.join(os.path.dirname(__file__), "cd", "weathercode", "oneDay"))
 
 model = TemporalFusionTransformer.load_from_checkpoint(
     os.path.join(MODEL_DIR, "cd_tft_weather_code.ckpt")

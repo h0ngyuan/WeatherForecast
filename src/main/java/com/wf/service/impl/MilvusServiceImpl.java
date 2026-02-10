@@ -6,7 +6,7 @@ import com.alibaba.excel.context.AnalysisContext;
 import com.alibaba.excel.event.AnalysisEventListener;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
-import com.wf.entity.MilvusData;
+import com.wf.object.entity.MilvusData;
 import com.wf.service.MilvusService;
 import io.milvus.v2.client.MilvusClientV2;
 import io.milvus.v2.service.vector.request.InsertReq;
@@ -28,7 +28,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service

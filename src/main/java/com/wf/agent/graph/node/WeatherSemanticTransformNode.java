@@ -2,7 +2,7 @@ package com.wf.agent.graph.node;
 
 import com.alibaba.cloud.ai.graph.OverAllState;
 import com.alibaba.cloud.ai.graph.action.NodeAction;
-import com.wf.agent.base.NormalizationResult;
+import com.wf.object.entity.NormalizationResult;
 import com.wf.agent.constants.WeatherGraphConstants;
 import com.wf.agent.constants.WeatherPromptProvider;
 import com.wf.agent.tool.LocationTool;
@@ -49,7 +49,7 @@ public class WeatherSemanticTransformNode implements NodeAction {
 
         return Map.of(
             WeatherGraphConstants.KEY_TRANSFORMED_QUESTION, result.getNormalizedQuestion(),
-            WeatherGraphConstants.KEY_LOCATION_INFO, result.getRequestInfo()
+            WeatherGraphConstants.KEY_WEATHER_CODE_QUERY, result.getRequestInfo()
         );
     }
 

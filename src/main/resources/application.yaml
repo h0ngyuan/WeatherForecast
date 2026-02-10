@@ -1,3 +1,5 @@
+server:
+  port: 8080
 wx:
   uniapp:
     appid: wxd24ab768b910ae57
@@ -22,6 +24,31 @@ spring:
       api-key: ${DASHSCOPE_API_KEY}
   application:
     name: weather-forecast
+  data:
+    redis:
+      host: 119.91.238.231
+      port: 6379
+      password: 123456
+      database: 0
+      timeout: 200000ms
+      lettuce:
+        pool:
+          max-active: 10
+          max-idle: 5
+          min-idle: 0
+          max-wait: 100000ms
+  mail:
+    host: smtp.qq.com
+    port: 587
+    username: 2472613445@qq.com
+    password: jccsjzzqzdcwdiga
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
 milvus:
   uri: https://in03-50c4bee8142f395.serverless.aws-eu-central-1.cloud.zilliz.com
   token: 8e30a9720b997d189fd5b12a26c07ef5f2e6269da94bd4db40bcfa9bbdc2874bedd0c2e0cd167566ec44e484f4264894ca109a6d
@@ -35,5 +62,11 @@ mybatis-plus:
   global-config:
     db-config:
       id-type: auto
-server:
-  port: 8080
+
+aliyun:
+  sms:
+    accessKeyId: your-access-key-id
+    accessKeySecret: your-access-key-secret
+    signName: your-sign-name
+    templateCode: your-template-code
+

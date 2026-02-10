@@ -96,7 +96,7 @@ public class LocationTool {
     @Tool(description = "判断我的系统里有没有这个城市的数据")
     public Boolean hasThisCity(@ToolParam(description = "这边传入的是当前城市的城市名称") String city){
         List<ParamDataEntity> cities = paramService.getCities();
-        Set<String> set = (Set<String>) cities.stream().map((Function<? super ParamDataEntity, ?>) c -> JSONObject.parseObject(c.getDescription()).get("city").toString()).collect(Collectors.toSet());
+        Set<?> set = cities.stream().map((Function<? super ParamDataEntity, ?>) c -> JSONObject.parseObject(c.getDescription()).get("city").toString()).collect(Collectors.toSet());
         return set.contains(city);
     }
 }

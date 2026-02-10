@@ -1,4 +1,4 @@
-package com.wf.agent.tool.wpTool;
+package com.wf.agent.tool;
 
 import com.wf.object.query.WeatherCodeQuery;
 
@@ -18,7 +18,7 @@ public class WeatherPredictionTool {
     @Autowired
     private WeatherForecastService weatherForecastService;
     
-    @Tool(description = "获取未来某段时间的天气预测值")
+    @Tool(description = "获取过去或未来规定地点规定时间的天气预测值")
     List<String> acquireWeatherCodeValueByRangeTime(@ToolParam(description = "这边需要三个参数，城市，开始时间，结束时间，这个其实上一NODE提供了") WeatherCodeQuery query){
         log.info("========== [WeatherPredictionTool] 调用 acquireWeatherCodeValueByRangeTime ==========");
         log.info("查询参数: 城市={}, 开始时间={}, 结束时间={}", query.getLocation(), query.getBeginTime(), query.getEndTime());

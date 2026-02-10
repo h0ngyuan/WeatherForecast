@@ -1,12 +1,12 @@
-package com.wf.agent.base;
+package com.wf.object.entity;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
-import lombok.RequiredArgsConstructor;
 
 @Data
 @AllArgsConstructor
 public class NormalizationResult {
+    //其实这个类完全不需要，懒得改了
     private String normalizedQuestion;
     private String requestInfo;
 }

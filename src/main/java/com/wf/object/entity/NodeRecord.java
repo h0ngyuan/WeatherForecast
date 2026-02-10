@@ -9,16 +9,9 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class NodeExecutionRecordEntity {
+public class NodeRecord {
     private String nodeName;
     private String input;
     private String output;
     private LocalDateTime timestamp;
-
-    public NodeExecutionRecordEntity(String nodeName, String input, String output) {
-        this.nodeName = nodeName;
-        this.input = input;
-        this.output = output;
-        this.timestamp = LocalDateTime.now();
-    }
 }

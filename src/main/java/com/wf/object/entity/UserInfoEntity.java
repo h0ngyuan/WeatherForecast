@@ -28,6 +28,9 @@ public class UserInfoEntity implements Serializable {
     @Schema(description = "微信唯一标识（如 openid 或 unionid）")
     private String wechatOpenid;
 
+    @Schema(description = "密码")
+    private String password;
+
     @Schema(description = "用户昵称")
     private String nickname;
 

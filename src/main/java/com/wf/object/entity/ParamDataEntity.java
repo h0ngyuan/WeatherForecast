@@ -29,7 +29,7 @@ public class ParamDataEntity implements Serializable {
     private String dictTypeName;
 
     @Schema(description = "字典项的键（code值，如 \"0\", \"51\"）")
-    private String dictKey;
+    private Integer dictKey;
 
     @Schema(description = "字典项的值（描述，如 \"晴天\"）")
     private String dictValue;
