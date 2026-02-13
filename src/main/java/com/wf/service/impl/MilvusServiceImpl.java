@@ -165,7 +165,7 @@ public class MilvusServiceImpl implements MilvusService {
             SearchReq searchReq = SearchReq.builder()
                     .collectionName(collectionName)
                     .data(Collections.singletonList(new FloatVec(queryVector)))
-                    .topK(3)
+                    .topK(7)
                     .outputFields(Arrays.asList("content", "category"))
                     .build();
 

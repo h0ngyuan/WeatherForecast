@@ -2,6 +2,7 @@ package com.wf.service.impl;
 
 import com.alibaba.cloud.ai.graph.CompiledGraph;
 import com.alibaba.cloud.ai.graph.OverAllState;
+import com.alibaba.cloud.ai.graph.RunnableConfig;
 import com.wf.agent.constants.WeatherGraphConstants;
 import com.wf.object.response.WeatherAskResponse;
 import com.wf.service.WeatherGraphOrchestrator;
@@ -30,7 +31,9 @@ public class WeatherGraphOrchestratorImpl implements WeatherGraphOrchestrator {
         );
 
         log.info("初始化状态完成，开始调用 graph");
-        Optional<OverAllState> result = weatherGraph.invoke(initialState);
+        String threadId = "weather-thread-" + System.currentTimeMillis();
+        RunnableConfig config = RunnableConfig.builder().threadId(threadId).build();
+        Optional<OverAllState> result = weatherGraph.invoke(initialState, config);
         
         if (result.isEmpty()) {
             log.error("Graph 执行失败，返回空结果");

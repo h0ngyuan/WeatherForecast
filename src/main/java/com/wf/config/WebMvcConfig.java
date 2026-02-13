@@ -19,8 +19,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
                 .excludePathPatterns(
                     "/static/**",
                     "/public/**",
-                    "/favicon.ico",
-                    "/**"
+                    "/favicon.ico"
                 );
     }
 }

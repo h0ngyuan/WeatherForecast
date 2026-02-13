@@ -22,11 +22,16 @@ public class WeatherSemanticTransformNode implements NodeAction {
     private final MilvusService milvusService;
     private final ChatClient chatClient;
     private final WeatherPromptProvider promptProvider;
+    private final TimeTool timeTool;
+    private final LocationTool locationTool;
 
-    public WeatherSemanticTransformNode(MilvusService milvusService, ChatClient.Builder chatClientBuilder, WeatherPromptProvider promptProvider) {
+    public WeatherSemanticTransformNode(MilvusService milvusService, ChatClient.Builder chatClientBuilder, 
+                                        WeatherPromptProvider promptProvider, TimeTool timeTool, LocationTool locationTool) {
         this.milvusService = milvusService;
         this.chatClient = chatClientBuilder.build();
         this.promptProvider = promptProvider;
+        this.timeTool = timeTool;
+        this.locationTool = locationTool;
     }
 
     @Override
@@ -41,15 +46,19 @@ public class WeatherSemanticTransformNode implements NodeAction {
         log.info("语义转化完成: {}", transformedQuestion);
 
         log.info("开始规范化流程...");
-        NormalizationResult result = performNormalization(transformedQuestion);
-        log.info("规范化完成: {}", result.getNormalizedQuestion());
-        log.info("位置信息: {}", result.getRequestInfo());
+        Map<String, Object> result = performNormalization(transformedQuestion);
+        log.info("规范化完成: {}", result.get("normalizedQuestion"));
+        log.info("位置信息: {}", result.get("requestInfo"));
+        log.info("活动类型: {}", result.get("activityType"));
+        log.info("关心条件: {}", result.get("concernCondition"));
         
         log.info("---------- [transform节点] 执行完成 ----------");
 
         return Map.of(
-            WeatherGraphConstants.KEY_TRANSFORMED_QUESTION, result.getNormalizedQuestion(),
-            WeatherGraphConstants.KEY_WEATHER_CODE_QUERY, result.getRequestInfo()
+            WeatherGraphConstants.KEY_TRANSFORMED_QUESTION, result.get("normalizedQuestion"),
+            WeatherGraphConstants.KEY_WEATHER_CODE_QUERY, result.get("requestInfo"),
+            WeatherGraphConstants.KEY_ACTIVITY_TYPE, result.get("activityType"),
+            WeatherGraphConstants.KEY_CONCERN_CONDITION, result.get("concernCondition")
         );
     }
 
@@ -72,22 +81,32 @@ public class WeatherSemanticTransformNode implements NodeAction {
     /**
      * 执行规范化
      */
-    private NormalizationResult performNormalization(String question) {
+    private Map<String, Object> performNormalization(String question) {
         String prompt = promptProvider.getCompleteNormalizationPrompt(question);
-        String response = chatClient.prompt().user(prompt).tools(new TimeTool(), new LocationTool()).call().content();
+        String response = chatClient.prompt().user(prompt).tools(timeTool, locationTool).call().content();
         log.info("AI规范化响应: {}", response);
 
-        // 解析响应，提取requestInfo中的数据
         try {
             com.alibaba.fastjson2.JSONObject json = com.alibaba.fastjson2.JSON.parseObject(response.trim());
             String normalizedQuestion = json.getString("normalizedQuestion");
-            String requestInfo = json.getString("requestInfo");
+            Object requestInfo = json.get("requestInfo");
+            String activityType = json.getString("activityType");
+            String concernCondition = json.getString("concernCondition");
 
-            return new NormalizationResult(normalizedQuestion, requestInfo);
+            Map<String, Object> result = new java.util.HashMap<>();
+            result.put("normalizedQuestion", normalizedQuestion);
+            result.put("requestInfo", requestInfo);
+            result.put("activityType", activityType);
+            result.put("concernCondition", concernCondition);
+            return result;
         } catch (Exception e) {
             log.error("解析响应失败", e);
-            // 如果解析失败，返回默认格式
-            return new NormalizationResult(question, null);
+            Map<String, Object> result = new java.util.HashMap<>();
+            result.put("normalizedQuestion", question);
+            result.put("requestInfo", null);
+            result.put("activityType", null);
+            result.put("concernCondition", null);
+            return result;
         }
     }
 
@@ -108,6 +127,7 @@ public class WeatherSemanticTransformNode implements NodeAction {
                    .append(result.get("category"))
                    .append(")\n");
         }
+        log.info(context.toString());
         return context.toString();
     }
 }

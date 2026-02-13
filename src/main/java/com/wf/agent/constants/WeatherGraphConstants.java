@@ -10,7 +10,14 @@ public class WeatherGraphConstants {
     public static final String KEY_TRANSFORMED_QUESTION = "transformedQuestion";
     public static final String KEY_WEATHER_CODE_QUERY = "weatherCodeQuery";
     public static final String KEY_FORECAST_RESULT = "forecastResult";
+    public static final String KEY_ALERT_CHECK_RESULT = "alertCheckResult";
+    public static final String KEY_GENERATE_RESULT = "generateResult";
+    public static final String KEY_NEED_INTERVENTION = "needIntervention";
+    public static final String KEY_HAS_PERMISSION = "hasPermission";
+    public static final String KEY_HUMAN_FEEDBACK = "humanFeedback";
     public static final String KEY_EXECUTION_RECORDS = "executionRecords";
+    public static final String KEY_ACTIVITY_TYPE = "activityType";
+    public static final String KEY_CONCERN_CONDITION = "concernCondition";
 
     public static final String ACTION_NEXT = "next";
     public static final String ACTION_END = "end";
