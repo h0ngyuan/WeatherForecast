@@ -24,25 +24,41 @@ public class WeatherPromptProvider {
             """.formatted(question);
     }
 
-    public String getAnswerGenerationPrompt(String originalQuestion, String normalizedQuestion, String forecastResult) {
+    public String getAnswerGenerationPrompt(String originalQuestion, String normalizedQuestion, String forecastResult, String activityType, String concernCondition) {
         return """
-            你是一个专业的气象专家，请根据以下信息给出准确、简洁、自然的回答。
+            你是一个专业的气象专家，请综合分析以下所有信息，给出准确、简洁、自然的回答。
 
-            用户原始问题: %s
+            【用户原始问题】
+            %s
 
-            规范化问题（包含精确时间范围）: %s
+            【语义转化后的规范化问题】
+            %s
 
-            天气预测结果: %s
+            【天气预测数据】
+            %s
 
-            回答要求:
-            1. 回答要自然流畅，符合用户的原始提问方式
-            2. 基于天气预测结果给出具体的建议或回答
-            3. 如果用户问的是活动建议（如"能不能晒被子"），要给出明确的建议
-            4. 回答要简洁明了，不要过于冗长
-            5. 保持友好和专业的语气
+            【活动类型】
+            %s
 
-            请给出回答:
-            """.formatted(originalQuestion, normalizedQuestion, forecastResult != null ? forecastResult : "未获取到天气预测数据");
+            【用户关心的天气条件】
+            %s
+
+            【综合分析要求】
+            1. 结合用户原始问题的意图和语义转化后的精确时间范围
+            2. 基于天气预测数据，针对用户关心的天气条件给出分析
+            3. 如果涉及活动决策（如带伞、晒被子等），给出明确的是/否建议及理由
+            4. 考虑天气预报的不确定性，给出合理的提醒（如"建议随时关注天气变化"）
+            5. 回答要自然流畅，符合用户的提问方式，不要过于技术化
+            6. 保持友好、专业、简洁的语气
+
+            请给出综合分析和建议:
+            """.formatted(
+                originalQuestion, 
+                normalizedQuestion != null ? normalizedQuestion : "未提供", 
+                forecastResult != null ? forecastResult : "未获取到天气预测数据",
+                activityType != null && !activityType.isEmpty() ? activityType : "一般天气查询",
+                concernCondition != null && !concernCondition.isEmpty() ? concernCondition : "整体天气状况"
+            );
     }
 
     public String getAnswerQualityScorePrompt(String question, String answer) {
@@ -165,7 +181,9 @@ public class WeatherPromptProvider {
               "requestInfo": {
                 "beginTime": "开始时间，格式：yyyy-MM-dd HH:mm:ss",
                 "endTime": "结束时间，格式：yyyy-MM-dd HH:mm:ss",
-                "city": "可预测城市"
+                "city": "可预测城市",
+                "latitude": 纬度（数字）,
+                "longitude": 经度（数字）
               },
               "activityType": "活动类型（如：带伞决策、晒被子决策等，天气查询类为null）",
               "concernCondition": "关心的天气条件（如：是否有降雨、是否晴天等）"
@@ -173,7 +191,7 @@ public class WeatherPromptProvider {
 
             示例：
             用户问题："明天要带伞吗"
-            调用locationTool.getNearestAvailableCity()获取：成都
+            调用locationTool.getNearestAvailableCity()获取：{"city":"成都","latitude":30.5728,"longitude":104.0668}
             调用timeTool.acquireFormatHourTime(0, TimeUnit.DAYS)获取当前日期
             计算明天：2026-02-05 00:00:00到2026-02-05 23:59:59
             输出：
@@ -182,7 +200,9 @@ public class WeatherPromptProvider {
               "requestInfo": {
                 "beginTime": "2026-02-05 00:00:00",
                 "endTime": "2026-02-05 23:59:59",
-                "city": "成都"
+                "city": "成都",
+                "latitude": 30.5728,
+                "longitude": 104.0668
               },
               "activityType": "带伞决策",
               "concernCondition": "是否有降雨"
@@ -195,7 +215,9 @@ public class WeatherPromptProvider {
               "requestInfo": {
                 "beginTime": "2026-02-06 00:00:00",
                 "endTime": "2026-02-06 23:59:59",
-                "city": "成都"
+                "city": "成都",
+                "latitude": 30.5728,
+                "longitude": 104.0668
               },
               "activityType": "晒被子决策",
               "concernCondition": "是否晴天/无降雨"
@@ -208,7 +230,9 @@ public class WeatherPromptProvider {
               "requestInfo": {
                 "beginTime": "2026-02-04 00:00:00",
                 "endTime": "2026-02-04 23:59:59",
-                "city": "成都"
+                "city": "成都",
+                "latitude": 30.5728,
+                "longitude": 104.0668
               },
               "activityType": null,
               "concernCondition": null
@@ -216,6 +240,22 @@ public class WeatherPromptProvider {
 
             请输出规范化后的JSON:
             """.formatted(question);
+    }
+
+    public String getWeatherForecastPrompt(WeatherCodeQuery query, String weatherCodes) {
+        return """
+            你是一个天气分析专家。请根据以下查询信息和天气数据进行分析。
+
+            查询信息:
+            - 城市: %s
+            - 开始时间: %s
+            - 结束时间: %s
+            
+            天气码数据: %s
+            
+            请直接返回天气码数据，不要添加任何描述或解释。
+            """.formatted(query.getLocation(), query.getBeginTime(), query.getEndTime(), 
+                    weatherCodes != null ? weatherCodes : "无数据");
     }
 
     public String getWeatherForecastPrompt(WeatherCodeQuery query) {
@@ -271,20 +311,127 @@ public class WeatherPromptProvider {
 
             原始预测数据: %s
             
+            【天气码（ww）解释规则】
+            
+            核心规则：
+            - ww = 00–49：观测时刻无降水落在站点
+            - ww = 50–99：观测时刻有降水落在站点
+            
+            详细分类：
+            00–19：无降水、雾、沙尘暴、吹雪（除 11/12 外）
+            20–29：过去一小时有降水/雾/雷暴，但当前无
+            30–39：沙尘暴/吹雪
+            40–49：当前有雾/冰雾
+            50–59：毛毛雨（drizzle）
+            60–69：雨（rain）
+            70–79：固态降水（非阵性：雪/冰粒）
+            80–99：阵性降水或伴随雷暴
+            
+            关键代码映射表：
+            代码    天气现象（英文）                        中文释义
+            00      Cloud development not observed        云无显著变化
+            04      Visibility reduced by smoke           烟幕
+            05      Haze                                  霾
+            06      Widespread dust                       浮尘
+            07      Dust or sand raised by wind           扬沙
+            08      Well-developed dust/sand whirls       尘/沙旋风
+            09      Duststorm or sandstorm                尘/沙暴
+            10      Mist                                  轻雾
+            11      Patches of shallow fog                浅雾 patches
+            12      Continuous shallow fog                连续浅雾
+            15      Precipitation distant                 远距离降水
+            16      Precipitation near                    邻近降水
+            17      Thunderstorm no precipitation         雷暴无降水
+            18      Squalls                               飑线
+            19      Funnel cloud                          漏斗云/龙卷
+            20–29   Past phenomena                        过去一小时现象
+            30      Slight/moderate duststorm             轻度/中度沙尘暴
+            31      Slight/moderate duststorm             轻度/中度沙尘暴
+            32      Severe duststorm                      强沙尘暴
+            33      Severe duststorm                      强沙尘暴
+            34      Severe duststorm                      强沙尘暴
+            35      Severe duststorm                      强沙尘暴
+            36      Slight/moderate blowing snow          轻度/中度吹雪
+            37      Heavy drifting snow                   大雪飘
+            38      Slight/moderate blowing snow          轻度/中度吹雪
+            39      Heavy drifting snow                   大雪飘
+            40      Fog at a distance                     远处有雾
+            41      Patches of fog                        雾 patches
+            42        Fog sky visible                     雾（可见天空）
+            43        Fog sky invisible                   雾（不可见天空）
+            44        Fog                                 雾
+            45        Fog                                 雾
+            46        Fog                                 雾
+            47        Fog                                 雾
+            48        Fog depositing rime                 雾凇
+            49        Fog depositing rime                 雾凇
+            50        Slight drizzle                      轻微毛毛雨
+            51        Moderate drizzle                    中度毛毛雨
+            52        Dense drizzle                       密集毛毛雨
+            53        Light rain                          小雨
+            54        Moderate rain                       中雨
+            55        Heavy rain                          大雨
+            56        Light freezing drizzle              轻微冻毛毛雨
+            57        Heavy freezing drizzle              重度冻毛毛雨
+            58        Rain and drizzle                    雨夹毛毛雨
+            59        Heavy rain and drizzle              大雨夹毛毛雨
+            60        Slight rain                         轻微雨
+            61        Moderate rain                       中度雨
+            62        Heavy rain                          重度雨
+            63        Continuous slight rain              连续轻微雨
+            64        Continuous moderate rain            连续中度雨
+            65        Continuous heavy rain               连续大雨
+            66        Slight freezing rain                轻微冻雨
+            67        Moderate/heavy freezing rain        中度/重度冻雨
+            68        Slight rain and snow                轻微雨夹雪
+            69        Moderate/heavy rain and snow        中度/重度雨夹雪
+            70        Slight snow                         轻微雪
+            71        Moderate snow                       中度雪
+            72        Heavy snow                          重度雪
+            73        Continuous slight snow              连续轻微雪
+            74        Continuous moderate snow            连续中度雪
+            75        Continuous heavy snow               连续大雪
+            76        Diamond dust                        钻尘
+            77        Snow grains                         雪粒
+            78        Ice pellets                         冰丸
+            79        Ice pellets                         冰丸
+            80        Slight rain showers                 轻微阵雨
+            81        Moderate rain showers               中度阵雨
+            82        Heavy rain showers                  重度阵雨
+            83        Slight snow showers                 轻微阵雪
+            84        Moderate snow showers               中度阵雪
+            85        Heavy snow showers                  重度阵雪
+            86        Slight hail/snow pellet showers     轻微冰雹/雪丸阵
+            87        Moderate/heavy hail showers         中度/重度冰雹阵
+            88        Slight snow pellet showers          轻微雪丸阵
+            89        Heavy snow pellet showers           重度雪丸阵
+            90        Slight hail showers                 轻微冰雹阵
+            91        Slight rain thunderstorm            轻微雷雨
+            92        Moderate/heavy rain thunderstorm    中度/重度雷雨
+            93        Slight snow/hail thunderstorm       轻微雷暴伴雪/冰雹
+            94        Moderate/heavy snow thunderstorm    中度/重度雷暴伴雪
+            95        Slight/moderate thunderstorm        轻度/中度雷暴
+            96        Slight/moderate thunderstorm hail   轻度/中度雷暴伴冰雹
+            97        Heavy thunderstorm                  重度雷暴
+            98        Thunderstorm with dust/sandstorm    雷暴伴尘/沙暴
+            99        Heavy thunderstorm with hail        重度雷暴伴冰雹
+            
             请按照以下步骤操作：
             1. 分析原始数据中的天气码序列
-            2. 调用 getWeatherCodes 工具将天气码转换为可读的天气描述
+            2. 根据上述天气码映射表，将每个天气码转换为对应的中文天气描述
             3. 根据转换后的天气描述和时间序列，生成自然的语言表达
             
             转化规则：
             - 将相同天气状况的时间段合并描述
             - 使用自然的时间表达方式（如"9点到10点"、"10点到14点"等）
             - 描述要简洁流畅，符合用户阅读习惯
+            - 只需如实翻译天气码对应的天气现象，不需要添加预警或建议
             
             示例：
-            - "100,100,100" -> 调用工具获得["晴天","晴天","晴天"] -> "全天天气晴朗"
-            - "100,100,101,100,100,100" -> 调用工具获得["晴天","晴天","多云","晴天","晴天","晴天"] -> "上午到下午天气晴朗，傍晚转多云"
-            - "9点到10点是阴天，10点到14点是晴天，14点到15点是晴天" -> "9点到10点是阴天，10点到15点是晴天"
+            - "0,0,0" -> 全天云无显著变化
+            - "10,10,51,51,65,65" -> 上午轻雾，中午中度毛毛雨，下午连续大雨
+            - "60,61,80,80,95,95" -> 上午轻微雨转中度雨，中午阵雨，下午雷暴
+            - "5,5,32,32,60,60" -> 上午霾，中午强沙尘暴，下午轻微雨
             
             请直接返回转化后的描述，不要包含其他解释。
             """.formatted(forecastResult);

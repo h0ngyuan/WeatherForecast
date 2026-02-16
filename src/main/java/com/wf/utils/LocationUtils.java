@@ -16,6 +16,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -36,12 +39,15 @@ public class LocationUtils {
      * @return
      */
     @NotNull
-    public static Map<String, Object> getCurrentLocationMap() {
+    public static Map<String, Object> getCurrentLocationMap() throws UnknownHostException {
         String ip = getIp();
         if (ip == null || ip.isEmpty()) {
             return getDefaultGpsInfo();
         }
-
+        if (ip.equals("127.0.0.1")){
+            InetAddress localHost = InetAddress.getLocalHost();
+            ip = localHost.getHostAddress();
+        }
         try {
             String url = "http://ip-api.com/json/" + ip + "?lang=zh-CN";
             Request request = new Request.Builder()
@@ -105,5 +111,79 @@ public class LocationUtils {
         double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
         return R * c;
+    }
+
+    /**
+     * 根据城市名称获取地理位置坐标（使用 OpenStreetMap Nominatim）
+     * @param cityName 城市名称
+     * @return Map包含 lat（纬度）和 lon（经度），如果未找到返回 null
+     */
+    public static Map<String, Double> getCoordinatesByCityName(String cityName) {
+        if (cityName == null || cityName.isEmpty()) {
+            log.warn("城市名称为空");
+            return null;
+        }
+
+        try {
+            // Nominatim API 需要进行 URL 编码
+            String encodedCity = java.net.URLEncoder.encode(cityName, "UTF-8");
+            String url = String.format(
+                "https://nominatim.openstreetmap.org/search?q=%s&format=json&limit=1",
+                encodedCity
+            );
+
+            Request request = new Request.Builder()
+                    .url(url)
+//                    .header("User-Agent", "WeatherForecastApp/1.0")  // Nominatim 要求必须提供 User-Agent
+                    .get()
+                    .build();
+
+            try (Response response = httpClient.newCall(request).execute()) {
+                if (!response.isSuccessful()) {
+                    log.error("Nominatim API 请求失败: {}", response.code());
+                    return null;
+                }
+
+                String responseBody = response.body() != null ? response.body().string() : "";
+                if (responseBody.isEmpty()) {
+                    log.warn("Nominatim API 返回空响应");
+                    return null;
+                }
+
+                // 解析 JSON 响应
+                com.alibaba.fastjson2.JSONArray results = JSON.parseArray(responseBody);
+                if (results == null || results.isEmpty()) {
+                    log.warn("未找到城市 '{}' 的坐标信息", cityName);
+                    return null;
+                }
+
+                JSONObject firstResult = results.getJSONObject(0);
+                Double lat = firstResult.getDouble("lat");
+                Double lon = firstResult.getDouble("lon");
+
+                if (lat == null || lon == null) {
+                    log.warn("城市 '{}' 的坐标信息不完整", cityName);
+                    return null;
+                }
+
+                Map<String, Double> coordinates = new HashMap<>();
+                coordinates.put("lat", lat);
+                coordinates.put("lon", lon);
+
+                log.info("成功获取城市 '{}' 的坐标: lat={}, lon={}", cityName, lat, lon);
+                return coordinates;
+            }
+        } catch (IOException e) {
+            log.error("获取城市 '{}' 坐标时发生 IO 异常: {}", cityName, e.getMessage());
+            return null;
+        } catch (Exception e) {
+            log.error("获取城市 '{}' 坐标时发生异常: {}", cityName, e.getMessage(), e);
+            return null;
+        }
+    }
+
+    public static void main(String[] args) {
+        Map<String, Double> city = getCoordinatesByCityName("南通");
+        System.out.println(city);
     }
 }

@@ -13,6 +13,7 @@ import org.aspectj.lang.annotation.AfterReturning;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Pointcut;
 import org.springframework.stereotype.Component;
+import org.stringtemplate.v4.ST;
 
 import java.util.List;
 import java.util.Map;
@@ -45,7 +46,7 @@ public class OperationLogAspect {
                 Integer loopCount = state.value(WeatherGraphConstants.KEY_LOOP_COUNT, 1);
                 String nextAction = state.value(WeatherGraphConstants.KEY_NEXT_ACTION, "");
                 String transformedQuestion = state.value(WeatherGraphConstants.KEY_TRANSFORMED_QUESTION, "");
-                Object weatherCodeQuery = state.value(WeatherGraphConstants.KEY_WEATHER_CODE_QUERY, null);
+                String weatherCodeQuery = state.value(WeatherGraphConstants.KEY_WEATHER_CODE_QUERY, "");
                 String forecastResult = state.value(WeatherGraphConstants.KEY_FORECAST_RESULT, "");
                 String alertCheckResult = state.value(WeatherGraphConstants.KEY_ALERT_CHECK_RESULT, "");
                 String generateResult = state.value(WeatherGraphConstants.KEY_GENERATE_RESULT, "");

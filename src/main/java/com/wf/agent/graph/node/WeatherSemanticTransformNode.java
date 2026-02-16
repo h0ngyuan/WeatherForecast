@@ -9,6 +9,7 @@ import com.wf.agent.tool.LocationTool;
 import com.wf.agent.tool.TimeTool;
 import com.wf.service.MilvusService;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.kafka.common.protocol.types.Field;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.stereotype.Component;
 
@@ -46,20 +47,23 @@ public class WeatherSemanticTransformNode implements NodeAction {
         log.info("语义转化完成: {}", transformedQuestion);
 
         log.info("开始规范化流程...");
-        Map<String, Object> result = performNormalization(transformedQuestion);
+        Map<String, String> result = performNormalization(transformedQuestion);
         log.info("规范化完成: {}", result.get("normalizedQuestion"));
         log.info("位置信息: {}", result.get("requestInfo"));
         log.info("活动类型: {}", result.get("activityType"));
         log.info("关心条件: {}", result.get("concernCondition"));
         
+        log.info("准备返回结果到状态...");
+        Map<String, Object> returnResult = Map.of(
+            WeatherGraphConstants.KEY_TRANSFORMED_QUESTION, result.get("normalizedQuestion")==null?"":result.get("normalizedQuestion"),
+            WeatherGraphConstants.KEY_WEATHER_CODE_QUERY, result.get("requestInfo")==null?"":result.get("requestInfo"),
+            WeatherGraphConstants.KEY_ACTIVITY_TYPE, result.get("activityType")==null?"":result.get("activityType"),
+            WeatherGraphConstants.KEY_CONCERN_CONDITION, result.get("concernCondition")==null?"":result.get("concernCondition")
+        );
+        log.info("返回结果: {}", returnResult);
         log.info("---------- [transform节点] 执行完成 ----------");
 
-        return Map.of(
-            WeatherGraphConstants.KEY_TRANSFORMED_QUESTION, result.get("normalizedQuestion"),
-            WeatherGraphConstants.KEY_WEATHER_CODE_QUERY, result.get("requestInfo"),
-            WeatherGraphConstants.KEY_ACTIVITY_TYPE, result.get("activityType"),
-            WeatherGraphConstants.KEY_CONCERN_CONDITION, result.get("concernCondition")
-        );
+        return returnResult;
     }
 
     /**
@@ -81,7 +85,7 @@ public class WeatherSemanticTransformNode implements NodeAction {
     /**
      * 执行规范化
      */
-    private Map<String, Object> performNormalization(String question) {
+    private Map<String, String> performNormalization(String question) {
         String prompt = promptProvider.getCompleteNormalizationPrompt(question);
         String response = chatClient.prompt().user(prompt).tools(timeTool, locationTool).call().content();
         log.info("AI规范化响应: {}", response);
@@ -89,11 +93,14 @@ public class WeatherSemanticTransformNode implements NodeAction {
         try {
             com.alibaba.fastjson2.JSONObject json = com.alibaba.fastjson2.JSON.parseObject(response.trim());
             String normalizedQuestion = json.getString("normalizedQuestion");
-            Object requestInfo = json.get("requestInfo");
+            Object requestInfoObj = json.get("requestInfo");
+            String requestInfo = requestInfoObj != null ? requestInfoObj.toString() : null;
             String activityType = json.getString("activityType");
             String concernCondition = json.getString("concernCondition");
 
-            Map<String, Object> result = new java.util.HashMap<>();
+            log.info("解析requestInfo: {}", requestInfo);
+
+            Map<String,String> result = new java.util.HashMap<>();
             result.put("normalizedQuestion", normalizedQuestion);
             result.put("requestInfo", requestInfo);
             result.put("activityType", activityType);
@@ -101,7 +108,7 @@ public class WeatherSemanticTransformNode implements NodeAction {
             return result;
         } catch (Exception e) {
             log.error("解析响应失败", e);
-            Map<String, Object> result = new java.util.HashMap<>();
+            Map<String, String> result = new java.util.HashMap<>();
             result.put("normalizedQuestion", question);
             result.put("requestInfo", null);
             result.put("activityType", null);

@@ -30,6 +30,18 @@ spring:
       embedding:
         options:
           model: text-embedding-v3
+    mcp:
+      client:
+        enabled: true
+        type: SYNC
+        request-timeout: 120s
+        sse:
+          connections:
+            zuimei-weather:
+              url: https://dashscope.aliyuncs.com
+              sse-endpoint: /api/v1/mcps/zuimei-getweather/sse
+              headers:
+                Authorization: Bearer ${DASHSCOPE_API_KEY}
   application:
     name: weather-forecast
   data:
@@ -77,4 +89,11 @@ aliyun:
     accessKeySecret: your-access-key-secret
     signName: your-sign-name
     templateCode: your-template-code
+
+mcp:
+  weather:
+    endpoint: https://dashscope.aliyuncs.com/api/v1/mcps/zuimei-getweather/sse
+    api-key: ${DASHSCOPE_API_KEY}
+    base-url: https://dashscope.aliyuncs.com
+    sse-path: /api/v1/mcps/zuimei-getweather/sse
 

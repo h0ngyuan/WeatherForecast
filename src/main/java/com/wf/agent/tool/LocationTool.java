@@ -17,6 +17,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.net.UnknownHostException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -36,60 +37,68 @@ public class LocationTool {
      * 获取离当前位置最近的可预测城市
      * @return 最近城市的名称
      */
-    @Tool(description = "获取离当前位置最近的可预测城市")
-    public String getNearestAvailableCity() {
+    @Tool(description = "获取离当前位置最近的可预测城市（返回JSON包含城市名和经纬度）")
+    public String getNearestAvailableCity() throws UnknownHostException {
         Map<String, Object> currentLocation = LocationUtils.getCurrentLocationMap();
         if (currentLocation == null) {
-            return "成都";
+            return buildResultJson("成都", 30.5728, 104.0668);
         }
 
         Double lat = (Double) currentLocation.get("lat");
         Double lon = (Double) currentLocation.get("lon");
 
         if (lat == null || lon == null) {
-            return "成都";
+            return buildResultJson("成都", 30.5728, 104.0668);
         }
+        return buildResultJson(currentLocation.get("city").toString(),(Double) currentLocation.get("lat"),(Double) currentLocation.get("lon"));
 
-        try {
-            List<ParamDataEntity> cities = paramService.getCities();
-            if (cities == null || cities.isEmpty()) {
-                return "成都";
-            }
+//        try {
+//            List<ParamDataEntity> cities = paramService.getCities();
+//            if (cities == null || cities.isEmpty()) {
+//                return buildResultJson("成都", 30.5728, 104.0668);
+//            }
+//
+//            String nearestCity = "成都";
+//            double nearestLat = 30.5728;
+//            double nearestLon = 104.0668;
+//            double minDistance = Double.MAX_VALUE;
+//
+//            for (ParamDataEntity city : cities) {
+//                try {
+//                    String description = city.getDescription();
+//                    if (description == null || description.isEmpty()) {
+//                        continue;
+//                    }
+//
+//                    JSONObject cityInfo = JSON.parseObject(description);
+//                    Double cityLat = cityInfo.getDouble("latitude");
+//                    Double cityLon = cityInfo.getDouble("longitude");
+//                    String cityName = cityInfo.getString("city");
+//
+//                    if (cityLat != null && cityLon != null && cityName != null) {
+//                        double distance = LocationUtils.calculateDistance(lat, lon, cityLat, cityLon);
+//                        if (distance < minDistance) {
+//                            minDistance = distance;
+//                            nearestCity = cityName;
+//                            nearestLat = cityLat;
+//                            nearestLon = cityLon;
+//                        }
+//                    }
+//                } catch (Exception e) {
+//                    log.warn("解析城市信息失败: {}", city.getDescription(), e);
+//                }
+//            }
+//
+//            return buildResultJson(nearestCity, nearestLat, nearestLon);
+//        } catch (Exception e) {
+//            log.error("获取最近城市失败", e);
+//            return buildResultJson("成都", 30.5728, 104.0668);
+//        }
+    }
 
-            // 默认返回成都
-            String nearestCity = "成都";
-            double minDistance = Double.MAX_VALUE;
-
-            // 遍历所有城市，计算距离
-            for (ParamDataEntity city : cities) {
-                try {
-                    String description = city.getDescription();
-                    if (description == null || description.isEmpty()) {
-                        continue;
-                    }
-
-                    JSONObject cityInfo = JSON.parseObject(description);
-                    Double cityLat = cityInfo.getDouble("latitude");
-                    Double cityLon = cityInfo.getDouble("longitude");
-                    String cityName = cityInfo.getString("city");
-
-                    if (cityLat != null && cityLon != null && cityName != null) {
-                        double distance = LocationUtils.calculateDistance(lat, lon, cityLat, cityLon);
-                        if (distance < minDistance) {
-                            minDistance = distance;
-                            nearestCity = cityName;
-                        }
-                    }
-                } catch (Exception e) {
-                    log.warn("解析城市信息失败: {}", city.getDescription(), e);
-                }
-            }
-
-            return nearestCity;
-        } catch (Exception e) {
-            log.error("获取最近城市失败", e);
-            return "成都";
-        }
+    private String buildResultJson(String city, Double latitude, Double longitude) {
+        return String.format("{\"city\":\"%s\",\"latitude\":%s,\"longitude\":%s}", 
+                city, latitude, longitude);
     }
 
 

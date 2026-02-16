@@ -2,6 +2,7 @@ package com.wf.controller;
 
 import cn.dev33.satoken.context.SaHolder;
 import cn.dev33.satoken.context.model.SaRequest;
+import com.wf.agent.tool.MCPPredictionTool;
 import com.wf.object.request.WeatherAskRequest;
 import com.wf.object.response.WeatherAskResponse;
 import com.wf.service.MilvusService;
@@ -28,6 +29,7 @@ public class WeatherGraphController {
     private final WeatherGraphOrchestrator orchestrator;
     private final WeatherDataService weatherDataService;
     private final MilvusService milvusService;
+    private final MCPPredictionTool mcpPredictionTool;
 
     @PostMapping("/query")
     public ResponseEntity<WeatherAskResponse> ask(@Valid @RequestBody WeatherAskRequest request) {
@@ -103,6 +105,29 @@ public class WeatherGraphController {
         } catch (Exception e) {
             log.error("导入Milvus数据失败", e);
             return R.fail("导入失败: " + e.getMessage());
+        }
+    }
+
+    @Schema(description = "测试MCP连接")
+    @GetMapping("/mcp/test")
+    public R testMCPConnection(@RequestParam("lat") Double lat, @RequestParam("lon") Double lon) {
+        try {
+            log.info("测试MCP连接，lat={}, lon={}", lat, lon);
+            
+            if (lat == null || lon == null) {
+                return R.fail("请提供经纬度参数");
+            }
+            
+            String result = mcpPredictionTool.getWeatherFromMCP(lat, lon);
+            
+            if (result != null) {
+                return R.success("MCP连接成功，返回天气码: " + result);
+            } else {
+                return R.fail("MCP连接失败或返回空结果");
+            }
+        } catch (Exception e) {
+            log.error("MCP测试失败", e);
+            return R.fail("MCP测试失败: " + e.getMessage());
         }
     }
 }

@@ -98,7 +98,10 @@ public class WeatherGraphConfig {
         );
         log.info("  └─ judge --(相关性>=阈值?)--> transform / END");
 
-        graph.addEdge("transform", "forecast");
+        graph.addConditionalEdges("transform",
+            AsyncEdgeAction.edge_async(state -> "to_forecast"),
+            Map.of("to_forecast", "forecast")
+        );
         log.info("添加边: transform -> forecast");
 
         graph.addEdge("forecast", "alertCheck");
