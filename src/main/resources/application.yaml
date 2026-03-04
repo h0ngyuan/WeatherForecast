@@ -2,8 +2,8 @@ server:
   port: 8080
 wx:
   uniapp:
-    appid: wxd24ab768b910ae57
-    secret: 50f7f07419e8fdb360cf80a010cb11fb
+    appid: 
+    secret: 
 sa-token:
   token-name: satoken
   timeout: 2592000
@@ -15,33 +15,33 @@ sa-token:
 
 spring:
   datasource:
-    url: jdbc:mysql://119.91.238.231:3306/wf_db?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
-    username: root
-    password: Root123456
-    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: 
+    username: 
+    password: 
+    driver-class-name: 
   ai:
     dashscope:
-      api-key: ${DASHSCOPE_API_KEY}
+      api-key: 
   application:
-    name: weather-forecast
+    name:
   data:
     redis:
       host: 119.91.238.231
       port: 6379
       password: 123456
       database: 0
-      timeout: 200000ms
+      timeout: 
       lettuce:
         pool:
           max-active: 10
           max-idle: 5
           min-idle: 0
-          max-wait: 100000ms
+          max-wait: 
   mail:
-    host: smtp.qq.com
+    host: 
     port: 587
-    username: 2472613445@qq.com
-    password: jccsjzzqzdcwdiga
+    username: 
+    password: 
     properties:
       mail:
         smtp:
@@ -50,10 +50,10 @@ spring:
             enable: true
             required: true
 milvus:
-  uri: https://in03-50c4bee8142f395.serverless.aws-eu-central-1.cloud.zilliz.com
-  token: 8e30a9720b997d189fd5b12a26c07ef5f2e6269da94bd4db40bcfa9bbdc2874bedd0c2e0cd167566ec44e484f4264894ca109a6d
+  uri: 
+  token: 
   collection:
-    name: wf_general_acknowledge
+    name: 
     dimension: 1024
 mybatis-plus:
   mapper-locations: classpath:mapper/*.xml
