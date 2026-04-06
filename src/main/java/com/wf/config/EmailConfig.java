@@ -1,52 +1,30 @@
 package com.wf.config;
 
+import com.wf.utils.EmailUtils;
+import jakarta.annotation.PostConstruct;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.JavaMailSenderImpl;
 
-import java.util.Properties;
-
+/**
+ * 邮件配置类
+ * 负责初始化邮件工具类
+ */
+@Slf4j
 @Configuration
 public class EmailConfig {
 
-    @Value("${spring.mail.host}")
-    private String host;
-
-    @Value("${spring.mail.port}")
-    private int port;
-
     @Value("${spring.mail.username}")
-    private String username;
+    private String fromEmail;
 
-    @Value("${spring.mail.password}")
-    private String password;
+    @Autowired
+    private JavaMailSender mailSender;
 
-    @Value("${spring.mail.properties.mail.smtp.auth}")
-    private String auth;
-
-    @Value("${spring.mail.properties.mail.smtp.starttls.enable}")
-    private String starttlsEnable;
-
-    @Value("${spring.mail.properties.mail.smtp.starttls.required}")
-    private String starttlsRequired;
-
-    @Bean
-    public JavaMailSender mailSender() {
-        JavaMailSenderImpl mailSender = new JavaMailSenderImpl();
-        mailSender.setHost(host);
-        mailSender.setPort(port);
-        mailSender.setUsername(username);
-        mailSender.setPassword(password);
-
-        Properties props = mailSender.getJavaMailProperties();
-        props.put("mail.transport.protocol", "smtp");
-        props.put("mail.smtp.auth", auth);
-        props.put("mail.smtp.starttls.enable", starttlsEnable);
-        props.put("mail.smtp.starttls.required", starttlsRequired);
-        props.put("mail.debug", "false");
-
-        return mailSender;
+    @PostConstruct
+    public void init() {
+        EmailUtils.init(fromEmail, mailSender);
+        log.info("邮件工具初始化完成，发件人: {}", fromEmail);
     }
 }

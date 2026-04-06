@@ -18,6 +18,7 @@ public class WeatherGraphConstants {
     public static final String KEY_EXECUTION_RECORDS = "executionRecords";
     public static final String KEY_ACTIVITY_TYPE = "activityType";
     public static final String KEY_CONCERN_CONDITION = "concernCondition";
+    public static final String KEY_USER_ID = "userId";
 
     public static final String ACTION_NEXT = "next";
     public static final String ACTION_END = "end";

@@ -12,6 +12,7 @@ sa-token:
   is-share: false
   is-log: true
   active-timeout: -1
+  is-print: true
 
 spring:
   profiles:

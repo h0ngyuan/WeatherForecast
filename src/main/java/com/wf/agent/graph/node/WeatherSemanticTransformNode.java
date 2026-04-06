@@ -2,14 +2,12 @@ package com.wf.agent.graph.node;
 
 import com.alibaba.cloud.ai.graph.OverAllState;
 import com.alibaba.cloud.ai.graph.action.NodeAction;
-import com.wf.object.entity.NormalizationResult;
 import com.wf.agent.constants.WeatherGraphConstants;
 import com.wf.agent.constants.WeatherPromptProvider;
 import com.wf.agent.tool.LocationTool;
 import com.wf.agent.tool.TimeTool;
 import com.wf.service.MilvusService;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.kafka.common.protocol.types.Field;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.stereotype.Component;
 

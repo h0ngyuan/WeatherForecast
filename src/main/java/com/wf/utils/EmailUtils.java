@@ -2,24 +2,25 @@ package com.wf.utils;
 
 import jakarta.mail.internet.MimeMessage;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 
+/**
+ * 邮件工具类
+ * 纯工具类，通过 EmailConfig 初始化
+ */
 @Slf4j
 public class EmailUtils {
 
     private static String fromEmail;
     private static JavaMailSender mailSender;
 
-    @Value("${spring.mail.username}")
-    public void setFromEmail(String fromEmail) {
-        EmailUtils.fromEmail = fromEmail;
-    }
-
-    @Value("${spring.mail.host}")
-    public void setMailSender(JavaMailSender mailSender) {
-        EmailUtils.mailSender = mailSender;
+    /**
+     * 初始化方法，由 EmailConfig 调用
+     */
+    public static void init(String from, JavaMailSender sender) {
+        fromEmail = from;
+        mailSender = sender;
     }
 
     public static void sendCaptcha(String toEmail, String code) {

@@ -16,11 +16,10 @@ public class SaTokenConfig implements WebMvcConfigurer {
                 .addPathPatterns("/**")
 
                 .excludePathPatterns(
-                        "/wx/login",
-                        "/weather/query",
+                        "/wx/**",
+//                        "/weather/query",
                         "/error",
                         "/doc.html",
-                        "/webjars/**",
-                        "/**");
+                        "/webjars/**");
     }
 }

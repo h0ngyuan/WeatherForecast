@@ -20,4 +20,14 @@ public interface ContactService {
     UserInfoEntity getNotifySettings(Long userId);
 
     void updateNotifySettings(Long userId, NotifySettingQuery query);
+
+    /**
+     * 直接绑定手机号（用于人工干预场景，不验证验证码）
+     */
+    boolean bindPhoneDirect(Long userId, String phone);
+
+    /**
+     * 直接绑定邮箱（用于人工干预场景，不验证验证码）
+     */
+    boolean bindEmailDirect(Long userId, String email);
 }

@@ -6,6 +6,8 @@ import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONObject;
 import com.wf.agent.base.AIClient;
 import com.wf.agent.constants.WeatherGraphConstants;
+import com.wf.mapper.UserInfoMapper;
+import com.wf.object.entity.UserInfoEntity;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -17,9 +19,11 @@ import java.util.Map;
 public class WeatherAlertCheckNode implements NodeAction {
 
     private final AIClient aiClient;
+    private final UserInfoMapper userInfoMapper;
 
-    public WeatherAlertCheckNode(AIClient aiClient) {
+    public WeatherAlertCheckNode(AIClient aiClient, UserInfoMapper userInfoMapper) {
         this.aiClient = aiClient;
+        this.userInfoMapper = userInfoMapper;
     }
 
     @Override
@@ -69,10 +73,39 @@ public class WeatherAlertCheckNode implements NodeAction {
     }
 
     private boolean checkUserPermission(OverAllState state) {
-        // TODO: 实现真实的权限检查逻辑
-        // 1. 检查用户是否开启了短信通知权限
-        // 2. 检查用户是否开启了邮件通知权限
-        // 3. 检查用户是否绑定了手机号/邮箱
-        return false;
+        Long userId = state.value(WeatherGraphConstants.KEY_USER_ID, 0L);
+        if (userId == 0L) {
+            log.warn("未获取到用户ID，无法检查权限");
+            return false;
+        }
+
+        UserInfoEntity userInfo = userInfoMapper.selectById(userId);
+        if (userInfo == null) {
+            log.warn("用户不存在: userId={}", userId);
+            return false;
+        }
+
+        // 检查用户是否有任一通知权限且绑定了对应联系方式
+//        boolean hasPhonePermission = userInfo.getPhoneNotifyPermission() != null
+//                && userInfo.getPhoneNotifyPermission() == 1
+//                && userInfo.getPhone() != null
+//                && !userInfo.getPhone().isEmpty();
+
+        boolean hasEmailPermission = userInfo.getEmailNotifyPermission() != null
+                && userInfo.getEmailNotifyPermission() == 1
+                && userInfo.getEmail() != null
+                && !userInfo.getEmail().isEmpty();
+//
+//        boolean hasWechatPermission = userInfo.getWechatNotifyPermission() != null
+//                && userInfo.getWechatNotifyPermission() == 1
+//                && userInfo.getWechatOpenid() != null
+//                && !userInfo.getWechatOpenid().isEmpty();
+
+//        boolean hasPermission = hasPhonePermission || hasEmailPermission || hasWechatPermission;
+
+//        log.info("用户权限检查: userId={}, phonePermission={}, emailPermission={}, wechatPermission={}",
+//                userId, hasPhonePermission, hasEmailPermission, hasWechatPermission);
+
+        return hasEmailPermission;
     }
 }

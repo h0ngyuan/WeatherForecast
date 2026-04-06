@@ -42,15 +42,15 @@ public class EmailLoginStrategy implements LoginStrategy {
             throw new RuntimeException("邮箱验证码不能为空");
         }
 
-        if (captchaKey != null && !captchaKey.isEmpty()) {
-            if (captchaCode == null || captchaCode.isEmpty()) {
-                throw new RuntimeException("图形验证码不能为空");
-            }
-            boolean captchaValid = captchaService.verifyImageCaptcha(captchaKey, captchaCode);
-            if (!captchaValid) {
-                throw new RuntimeException("图形验证码错误");
-            }
-        }
+//        if (captchaKey != null && !captchaKey.isEmpty()) {
+//            if (captchaCode == null || captchaCode.isEmpty()) {
+//                throw new RuntimeException("图形验证码不能为空");
+//            }
+//            boolean captchaValid = captchaService.verifyImageCaptcha(captchaKey, captchaCode);
+//            if (!captchaValid) {
+//                throw new RuntimeException("图形验证码错误");
+//            }
+//        }
 
         String redisKey = EMAIL_CAPTCHA_PREFIX + email;
         String storedCode = redisTemplate.opsForValue().get(redisKey);
@@ -62,9 +62,15 @@ public class EmailLoginStrategy implements LoginStrategy {
             throw new RuntimeException("邮箱验证码错误");
         }
 
-        LambdaQueryWrapper<UserInfoEntity> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(UserInfoEntity::getEmail, email);
-        UserInfoEntity user = userInfoMapper.selectOne(wrapper);
+
+        System.out.println(userInfoMapper.selectList(
+                new LambdaQueryWrapper<UserInfoEntity>()
+                        .eq(UserInfoEntity::getAvailable,1)));
+
+        UserInfoEntity user = userInfoMapper.selectOne(
+                new LambdaQueryWrapper<UserInfoEntity>()
+                        .eq(UserInfoEntity::getEmail,email)
+                        .eq(UserInfoEntity::getAvailable,1));
 
         if (user == null) {
             user = new UserInfoEntity();

@@ -42,7 +42,7 @@ public class WeatherWriteTaskNode implements NodeAction {
                         taskType, concernCondition, monitoringPeriod, notifyCondition);
 
                 // TODO: 实际写入数据库的逻辑
-                // taskService.createTask(taskType, concernCondition, monitoringPeriod, notifyCondition, originalQuestion);
+//                 taskService.createTask(taskType, concernCondition, monitoringPeriod, notifyCondition, originalQuestion);
                 
                 log.info("提醒任务写入成功");
             }

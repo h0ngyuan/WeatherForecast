@@ -14,6 +14,8 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiConsumer;
+import java.util.function.Function;
 
 @Slf4j
 @Service
@@ -195,5 +197,42 @@ public class ContactServiceImpl implements ContactService {
 
         userInfoMapper.update(null, updateWrapper);
         log.info("用户通知设置更新成功，userId: {}", userId);
+    }
+
+    @Override
+    public boolean bindPhoneDirect(Long userId, String phone) {
+        return bindContactDirect(userId, phone, "手机号", UserInfoEntity::getPhone, UserInfoEntity::setPhone);
+    }
+
+    @Override
+    public boolean bindEmailDirect(Long userId, String email) {
+        return bindContactDirect(userId, email, "邮箱", UserInfoEntity::getEmail, UserInfoEntity::setEmail);
+    }
+
+    private boolean bindContactDirect(Long userId, String contact, String contactType,
+                                      Function<UserInfoEntity, String> getter,
+                                      BiConsumer<UserInfoEntity, String> setter) {
+        if (contact == null || contact.isEmpty()) {
+            throw new RuntimeException(contactType + "不能为空");
+        }
+
+        UserInfoEntity user = userInfoMapper.selectById(userId);
+        if (user == null) {
+            throw new RuntimeException("用户不存在");
+        }
+
+        String existingContact = getter.apply(user);
+        if (existingContact != null && !existingContact.isEmpty()) {
+            log.info("用户已绑定{}，跳过绑定: userId={}", contactType, userId);
+            return true;
+        }
+
+        setter.accept(user, contact);
+        int updated = userInfoMapper.updateById(user);
+        if (updated > 0) {
+            log.info("用户直接绑定{}成功，userId: {}, contact: {}", contactType, userId, contact);
+            return true;
+        }
+        return false;
     }
 }

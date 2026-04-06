@@ -153,4 +153,9 @@ public class RequestInfoInterceptor implements HandlerInterceptor {
         jakarta.servlet.http.HttpSession session = request.getSession(false);
         return session != null ? session.getId() : null;
     }
+
+
+    public int getOrder(){
+        return -90;
+    }
 }

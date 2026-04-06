@@ -66,9 +66,10 @@ public class WeatherGraphConfig {
             entry(WeatherGraphConstants.KEY_LOOP_COUNT, new ReplaceStrategy()),
             entry(WeatherGraphConstants.KEY_NEXT_ACTION, new ReplaceStrategy()),
             entry(WeatherGraphConstants.KEY_ACTIVITY_TYPE, new ReplaceStrategy()),
-            entry(WeatherGraphConstants.KEY_CONCERN_CONDITION, new ReplaceStrategy())
+            entry(WeatherGraphConstants.KEY_CONCERN_CONDITION, new ReplaceStrategy()),
+            entry(WeatherGraphConstants.KEY_USER_ID, new ReplaceStrategy())
         );
-        log.info("  └─ 已注册 {} 个状态键", 16);
+        log.info("  └─ 已注册 {} 个状态键", 17);
 
         StateGraph graph = new StateGraph(keyStrategy);
 

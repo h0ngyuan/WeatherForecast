@@ -56,7 +56,7 @@ public class UserInfoEntity implements Serializable {
     private Integer phoneNotifyPermission;
 
     @Schema(description = "是否可用：1=正常，0=禁用/注销")
-    @TableLogic
+//    @TableLogic
     private Integer available;
 
     @Schema(description = "记录插入时间")

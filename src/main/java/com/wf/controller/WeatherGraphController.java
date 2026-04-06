@@ -1,24 +1,22 @@
 package com.wf.controller;
 
-import cn.dev33.satoken.context.SaHolder;
-import cn.dev33.satoken.context.model.SaRequest;
+import cn.dev33.satoken.stp.StpUtil;
 import com.wf.agent.tool.MCPPredictionTool;
 import com.wf.object.request.WeatherAskRequest;
+import com.wf.object.request.WeatherPermissionRequest;
 import com.wf.object.response.WeatherAskResponse;
 import com.wf.service.MilvusService;
 import com.wf.service.WeatherDataService;
 import com.wf.service.WeatherGraphOrchestrator;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springblade.core.tool.api.R;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import javax.servlet.http.HttpServletRequest;
 import java.util.List;
-import java.util.Map;
 
 @Slf4j
 @RestController
@@ -31,14 +29,59 @@ public class WeatherGraphController {
     private final MilvusService milvusService;
     private final MCPPredictionTool mcpPredictionTool;
 
+    @Operation(summary = "天气查询", description = "启动天气查询流程，支持人工干预机制。如果用户没有通知权限但需要发送预警，流程会暂停等待授权")
     @PostMapping("/query")
-    public ResponseEntity<WeatherAskResponse> ask(@Valid @RequestBody WeatherAskRequest request) {
+    public R<WeatherAskResponse> ask(@Valid @RequestBody WeatherAskRequest request) {
         try {
-            WeatherAskResponse response = orchestrator.process(request.question());
-            return ResponseEntity.ok(response);
+            Long userId = StpUtil.getLoginIdAsLong();
+            log.info("查询天气，question={}, userId={}", request.getQuestion(), userId);
+            WeatherAskResponse result = orchestrator.processWithThread(request.getQuestion(), userId);
+            return R.data(result);
         } catch (Exception e) {
-            return ResponseEntity.status(500)
-                    .body(new WeatherAskResponse("服务暂时不可用", false, 0.0, 0.0, 0));
+            log.error("流程执行失败", e);
+            return R.fail("执行失败: " + e.getMessage());
+        }
+    }
+
+    @Operation(summary = "授权通知权限", description = "用户在人工干预节点授权通知权限后调用此接口，只更新用户权限设置，不恢复流程")
+    @PostMapping("/grant-permission")
+    public R<Void> grantPermission(@Valid @RequestBody WeatherPermissionRequest request) {
+        try {
+            Long userId = StpUtil.getLoginIdAsLong();
+            log.info("用户授权通知权限，threadId={}, userId={}", request.getThreadId(), userId);
+            orchestrator.grantPermission(request.getThreadId(), userId, request);
+            return R.success("授权成功");
+        } catch (Exception e) {
+            log.error("授权失败", e);
+            return R.fail("授权失败: " + e.getMessage());
+        }
+    }
+
+    @Operation(summary = "恢复流程", description = "用户授权后调用此接口恢复流程执行")
+    @PostMapping("/resume")
+    public R<WeatherAskResponse> resume(@RequestParam("threadId") String threadId) {
+        try {
+            Long userId = StpUtil.getLoginIdAsLong();
+            log.info("恢复流程，threadId={}, userId={}", threadId, userId);
+            WeatherAskResponse result = orchestrator.resume(threadId, userId);
+            return R.data(result);
+        } catch (Exception e) {
+            log.error("恢复流程失败", e);
+            return R.fail("恢复流程失败: " + e.getMessage());
+        }
+    }
+
+    @Operation(summary = "拒绝授权并结束流程", description = "用户在人工干预节点拒绝授权时调用此接口，会直接结束流程")
+    @PostMapping("/reject-permission")
+    public R<WeatherAskResponse> rejectPermission(@RequestParam("threadId") String threadId) {
+        try {
+            Long userId = StpUtil.getLoginIdAsLong();
+            log.info("用户拒绝授权，threadId={}, userId={}", threadId, userId);
+            WeatherAskResponse result = orchestrator.rejectPermission(threadId, userId);
+            return R.data(result);
+        } catch (Exception e) {
+            log.error("拒绝授权失败", e);
+            return R.fail("拒绝授权失败: " + e.getMessage());
         }
     }
 
@@ -113,13 +156,13 @@ public class WeatherGraphController {
     public R testMCPConnection(@RequestParam("lat") Double lat, @RequestParam("lon") Double lon) {
         try {
             log.info("测试MCP连接，lat={}, lon={}", lat, lon);
-            
+
             if (lat == null || lon == null) {
                 return R.fail("请提供经纬度参数");
             }
-            
+
             String result = mcpPredictionTool.getWeatherFromMCP(lat, lon);
-            
+
             if (result != null) {
                 return R.success("MCP连接成功，返回天气码: " + result);
             } else {
