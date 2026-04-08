@@ -1,4 +1,4 @@
-package com.wf.task;
+package com.wf.job;
 
 import com.wf.object.entity.WeatherDataEntity;
 import com.wf.service.WeatherDataService;
@@ -15,7 +15,7 @@ import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Component
-public class WeatherDataTask {
+public class WeatherDataJob {
 
     private static final String WEATHER_FETCH_API = "https://archive-api.open-meteo.com/v1/archive?" +
             "latitude=30.9647&longitude=103.6258&hourly=temperature_2m," +

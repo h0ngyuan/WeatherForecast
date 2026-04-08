@@ -1,0 +1,374 @@
+# WeatherForecast 紧急响应系统开发规范
+
+## 系统定位
+
+紧急响应系统是 WeatherForecast 项目的独立子系统，与气象预测查询(query)完全解耦。
+
+**核心职责**：每日定时监控各地区天气，识别灾害并分级，根据灾害级别通知相关用户。
+
+**与气象预测查询的区别**：
+- 气象预测查询：用户主动发起，通过对话流程获取天气答案
+- 紧急响应系统：系统自动定时执行，用于灾害预警和提醒任务触发
+
+---
+
+## 一、系统架构
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    紧急响应系统                              │
+├─────────────────────────────────────────────────────────────┤
+│  定时任务 (WeatherEmergencyJob)                              │
+│     │                                                       │
+│     ▼                                                       │
+│  获取地区列表 ← SYS_PARAM_DICT (DICT_TYPE='LOCATION')        │
+│     │                                                       │
+│     ▼                                                       │
+│  遍历每个地区                                                │
+│     │                                                       │
+│     ▼                                                       │
+│  ┌───────────────────────────────────────────────────────┐  │
+│  │  MCP天气查询 (McpWeatherQuerySkill)                    │  │
+│  │  输入: 地区名称                                         │  │
+│  │  输出: 24小时天气码值列表                                │  │
+│  └───────────────────────────────────────────────────────┘  │
+│     │                                                       │
+│     ▼                                                       │
+│  ┌───────────────────────────────────────────────────────┐  │
+│  │  灾害分析Agent (DisasterAnalysisAgent)                 │  │
+│  │  分析24小时码值，识别灾害类型、时间、描述                │  │
+│  └───────────────────────────────────────────────────────┘  │
+│     │                                                       │
+│     ▼                                                       │
+│  ┌───────────────────────────────────────────────────────┐  │
+│  │  灾害评审Agent (DisasterReviewAgent)                   │  │
+│  │  评审灾害级别: 1=严重, 2=中等, 3=轻微                    │  │
+│  └───────────────────────────────────────────────────────┘  │
+│     │                                                       │
+│     ▼                                                       │
+│  分流处理                                                    │
+│     │                                                       │
+│     ├─ 一级灾害 ──► 通知该地区所有用户                      │
+│     │                                                       │
+│     └─ 二/三级灾害 ──► 查询任务表 ──► 通知匹配用户          │
+│                                                       │      │
+│  ┌──────────────────────────────────────────────────┐ │      │
+│  │  邮件服务 (EmailNotificationService)              │◄┘      │
+│  │  发送灾害预警邮件或提醒邮件                        │        │
+│  └──────────────────────────────────────────────────┘        │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 二、数据表设计
+
+### 2.1 WEATHER_REMINDER_TASK 提醒任务表
+
+存储用户创建的天气提醒任务。定时任务扫描此表，当灾害发生时通知匹配的用户。
+
+```sql
+CREATE TABLE WEATHER_REMINDER_TASK (
+    ID BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '任务ID，从100000开始',
+    USER_ID BIGINT NOT NULL COMMENT '用户ID',
+    ORIGINAL_QUESTION VARCHAR(500) NOT NULL COMMENT '用户原始问题',
+    CONCERN_WORD VARCHAR(100) COMMENT '关键词，如晒被子、爬山等',
+    CONCERN_CONDITION INT COMMENT '关心条件（天气码值）',
+    TASK_TYPE TINYINT(1) DEFAULT 0 COMMENT '0=一次，1=总是',
+    NOTIFY_CONDITION VARCHAR(200) COMMENT '预留',
+    LOCATION VARCHAR(50) COMMENT '监控地点，如南通、杭州等',
+    TASK_STATUS TINYINT(1) DEFAULT 0 COMMENT '0=未执行，1=已执行',
+    EXPECTED_EXEC_TIME DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '预计执行时间',
+    NOTIFY_BY_EMAIL TINYINT(1) DEFAULT 1 COMMENT '邮件通知',
+    NOTIFY_BY_SMS TINYINT(1) DEFAULT 0 COMMENT '短信通知',
+    NOTIFY_BY_WECHAT TINYINT(1) DEFAULT 0 COMMENT '微信通知',
+    AVAILABLE TINYINT(1) DEFAULT 1 COMMENT '是否可用',
+    CREATE_TIME DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UPDATE_TIME DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX IDX_USER_ID (USER_ID),
+    INDEX IDX_TASK_STATUS (TASK_STATUS),
+    INDEX IDX_EXPECTED_EXEC_TIME (EXPECTED_EXEC_TIME),
+    INDEX IDX_LOCATION (LOCATION),
+    INDEX IDX_AVAILABLE (AVAILABLE)
+) ENGINE=InnoDB AUTO_INCREMENT=100000 DEFAULT CHARSET=utf8mb4 COMMENT='天气提醒任务表';
+```
+
+### 2.2 字段说明
+
+| 字段 | 说明 |
+|------|------|
+| ID | 任务唯一标识 |
+| USER_ID | 任务所属用户 |
+| ORIGINAL_QUESTION | 用户创建任务时的问题 |
+| CONCERN_WORD | 活动关键词 |
+| CONCERN_CONDITION | 关心的天气码值，如51(小雨) |
+| TASK_TYPE | 0=执行一次后结束，1=长期有效 |
+| LOCATION | 监控地点 |
+| TASK_STATUS | 0=待执行，1=已执行(仅对一次性任务有意义) |
+| EXPECTED_EXEC_TIME | 任务生效时间 |
+
+---
+
+## 三、模块设计
+
+### 3.1 定时任务入口 (WeatherEmergencyJob)
+
+**文件位置**：`com.wf.job.WeatherEmergencyJob`
+
+**职责**：
+- 每日定时触发（上午8点）
+- 获取所有监控地区
+- 遍历地区执行灾害检查
+- 根据灾害级别分发通知
+
+**核心流程**：
+```java
+@Scheduled(cron = "0 0 8 * * ?")
+public void dailyCheck() {
+    // 1. 获取地区列表
+    List<String> locations = sysParamDictService.getAllLocations();
+    
+    // 2. 遍历地区
+    for (String location : locations) {
+        // 3. MCP查询24小时天气
+        List<Integer> codes = mcpWeatherQuerySkill.query24Hour(location);
+        
+        // 4. 灾害分析
+        List<DisasterInfo> disasters = disasterAnalysisAgent.analyze(location, codes);
+        
+        // 5. 灾害评审
+        for (DisasterInfo d : disasters) {
+            d.setLevel(disasterReviewAgent.reviewLevel(d));
+        }
+        
+        // 6. 分流通知
+        dispatchNotify(location, disasters);
+    }
+}
+```
+
+---
+
+### 3.2 MCP天气查询 (McpWeatherQuerySkill)
+
+**文件位置**：`com.wf.agent.tool.McpWeatherQuerySkill`
+
+**职责**：调用MCP服务获取指定地区24小时天气码值
+
+**接口**：
+```java
+public List<Integer> query24Hour(String location);
+```
+
+**返回示例**：`[0, 0, 1, 1, 51, 51, 52, 53, 53, 52, 51, 0, 0, 1, 1, 2, 2, 1, 0, 0, 0, 0, 0, 0]`
+（24个整数，代表24小时的天气码值）
+
+---
+
+### 3.3 灾害分析Agent (DisasterAnalysisAgent)
+
+**文件位置**：`com.wf.agent.DisasterAnalysisAgent`
+
+**职责**：分析24小时天气码值，识别灾害
+
+**Prompt设计**：
+```
+请分析以下24小时天气码值，识别可能出现的灾害：
+地区：{location}
+天气码值：{weatherCodes}
+
+天气码值对照：
+0=晴天，1=多云，2=阴天，
+51=小雨，52=中雨，53=大雨，54=暴雨，
+61=小雪，62=中雪，63=大雪，64=暴雪，
+80=阵雨，81=雷阵雨，82=冰雹
+
+返回JSON格式：
+{
+  "disasters": [
+    {
+      "type": "灾害类型",
+      "weatherCode": 天气码值,
+      "startHour": 开始小时(0-23),
+      "endHour": 结束小时(0-23),
+      "description": "灾害描述"
+    }
+  ]
+}
+```
+
+**输出**：List<DisasterInfo>
+
+---
+
+### 3.4 灾害评审Agent (DisasterReviewAgent)
+
+**文件位置**：`com.wf.agent.DisasterReviewAgent`
+
+**职责**：评审灾害级别
+
+**分级标准**：
+| 级别 | 灾害类型 | 示例 |
+|------|----------|------|
+| 1 | 严重 | 台风、暴雨红色预警、暴雪、冰雹 |
+| 2 | 中等 | 大雨、大风、雷电、大雾 |
+| 3 | 轻微 | 小雨、阴天、轻度污染 |
+
+**Prompt设计**：
+```
+请评审以下灾害的级别（1=严重，2=中等，3=轻微）：
+
+分级标准：
+- 一级（严重）：台风、暴雨红色预警、暴雪、冰雹
+- 二级（中等）：大雨、大风、雷电、大雾
+- 三级（轻微）：小雨、阴天、轻度污染
+
+灾害类型：{type}
+天气码值：{weatherCode}
+描述：{description}
+
+只返回数字1、2或3。
+```
+
+---
+
+### 3.5 邮件服务 (EmailNotificationService)
+
+**文件位置**：`com.wf.service.EmailNotificationService`
+
+**职责**：发送灾害预警邮件和提醒邮件
+
+**接口**：
+```java
+// 发送灾害预警（一级灾害，全员通知）
+void sendDisasterAlert(String to, String location, List<DisasterInfo> disasters);
+
+// 发送提醒（二/三级灾害，匹配用户通知）
+void sendReminder(String to, ReminderTaskVO task, DisasterInfo disaster);
+```
+
+---
+
+### 3.6 提醒任务服务 (ReminderTaskService)
+
+**文件位置**：`com.wf.service.ReminderTaskService`
+
+**职责**：管理提醒任务的生命周期
+
+**核心方法**：
+```java
+// 创建任务（由writeTask节点调用）
+Long createTask(ReminderTaskCreateRequest request);
+
+// 查询地区的待执行任务（定时任务调用）
+List<ReminderTaskVO> getPendingTasksByLocation(String location);
+
+// 标记任务为已执行（一次性任务执行后调用）
+void markTaskAsExecuted(Long taskId);
+```
+
+---
+
+## 四、通知分流逻辑
+
+```java
+private void dispatchNotify(String location, List<DisasterInfo> disasters) {
+    // 分离一级灾害和其他
+    List<DisasterInfo> level1 = disasters.stream()
+            .filter(d -> d.getLevel() == 1)
+            .collect(Collectors.toList());
+    
+    List<DisasterInfo> others = disasters.stream()
+            .filter(d -> d.getLevel() > 1)
+            .collect(Collectors.toList());
+    
+    // 一级灾害：通知该地区所有用户
+    if (!level1.isEmpty()) {
+        notifyAllUsers(location, level1);
+    }
+    
+    // 二/三级灾害：通知匹配任务的用户
+    for (DisasterInfo disaster : others) {
+        notifyMatchingUsers(location, disaster);
+    }
+}
+
+// 一级灾害：全员通知
+private void notifyAllUsers(String location, List<DisasterInfo> disasters) {
+    List<UserInfo> users = userService.getUsersByLocation(location);
+    for (UserInfo user : users) {
+        emailService.sendDisasterAlert(user.getEmail(), location, disasters);
+    }
+}
+
+// 二/三级灾害：匹配通知
+private void notifyMatchingUsers(String location, DisasterInfo disaster) {
+    List<ReminderTaskVO> tasks = reminderTaskService
+            .getPendingTasksByLocation(location);
+    
+    for (ReminderTaskVO task : tasks) {
+        // 天气码值匹配
+        if (task.getConcernCondition().equals(disaster.getWeatherCode())) {
+            UserInfo user = userService.getById(task.getUserId());
+            emailService.sendReminder(user.getEmail(), task, disaster);
+            
+            // 一次性任务标记为已执行
+            if (task.getTaskType() == 0) {
+                reminderTaskService.markTaskAsExecuted(task.getId());
+            }
+        }
+    }
+}
+```
+
+---
+
+## 五、代码实现要点
+
+### 5.1 异常处理
+- 每个地区的处理独立，失败不影响其他地区
+- 邮件发送失败记录日志，不中断流程
+- MCP查询失败重试3次
+
+### 5.2 性能考虑
+- 地区列表缓存，每日更新
+- 用户列表按需查询
+- 批量发送邮件（如需）
+
+### 5.3 日志记录
+```java
+log.info("[紧急响应] 开始处理地区: {}", location);
+log.info("[紧急响应] 识别到 {} 个灾害", disasters.size());
+log.info("[紧急响应] 一级灾害 {} 个，通知 {} 个用户", level1Count, userCount);
+log.info("[紧急响应] 二级/三级灾害，匹配 {} 个任务", taskCount);
+```
+
+---
+
+## 六、开发顺序
+
+1. 创建 WEATHER_REMINDER_TASK 表
+2. 实现 ReminderTaskService（CRUD）
+3. 实现 McpWeatherQuerySkill
+4. 实现 DisasterAnalysisAgent
+5. 实现 DisasterReviewAgent
+6. 实现 EmailNotificationService
+7. 实现 WeatherEmergencyJob（整合以上组件）
+8. 测试验证
+
+---
+
+## 七、与气象预测查询的关系
+
+| 维度 | 气象预测查询 | 紧急响应系统 |
+|------|-------------|-------------|
+| 触发方式 | 用户主动发起 | 系统定时执行 |
+| 入口 | /weather/query API | @Scheduled 定时任务 |
+| MCP使用 | 获取指定时间天气 | 获取24小时天气码值 |
+| AI使用 | 多节点协作 | 灾害分析+评审两个Agent |
+| 数据写入 | 可选写入提醒任务表 | 读取提醒任务表 |
+| 通知方式 | 无 | 邮件通知 |
+| 关系 | 独立系统，仅共享任务表 | 独立系统，仅共享任务表 |
+
+**关键理解**：紧急响应系统不依赖气象预测查询流程，它是一个完全独立的定时任务系统，只读取提醒任务表来获取需要通知的用户。

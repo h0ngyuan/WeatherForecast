@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.wf.mapper.ReminderTaskMapper">
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO WEATHER_REMINDER_TASK (
+            USER_ID, ORIGINAL_QUESTION, CONCERN_WORD, CONCERN_CONDITION,
+            TASK_TYPE, NOTIFY_CONDITION, LOCATION, TASK_STATUS,
+            EXPECTED_EARLIEST_TIME, NOTIFY_BY_EMAIL, NOTIFY_BY_SMS, NOTIFY_BY_WECHAT,
+            AVAILABLE, DISASTER_LEVEL, EXPECTED_LATEST_TIME, ALWAYS_REMIND,
+            CREATE_TIME, UPDATE_TIME
+        ) VALUES (
+            #{userId}, #{originalQuestion}, #{concernWord}, #{concernCondition},
+            #{taskType}, #{notifyCondition}, #{location}, #{taskStatus},
+            #{expectedEarliestTime}, #{notifyByEmail}, #{notifyBySms}, #{notifyByWechat},
+            #{available}, #{disasterLevel}, #{expectedLatestTime}, #{alwaysRemind},
+            NOW(), NOW()
+        )
+    </insert>
+
+    <select id="selectById" resultType="com.wf.object.entity.ReminderTaskEntity">
+        SELECT * FROM WEATHER_REMINDER_TASK WHERE ID = #{id}
+    </select>
+
+    <select id="selectByUserId" resultType="com.wf.object.entity.ReminderTaskEntity">
+        SELECT * FROM WEATHER_REMINDER_TASK
+        WHERE USER_ID = #{userId} AND AVAILABLE = 1
+        ORDER BY CREATE_TIME DESC
+    </select>
+
+    <select id="selectPendingByLocation" resultType="com.wf.object.entity.ReminderTaskEntity">
+        SELECT * FROM WEATHER_REMINDER_TASK
+        WHERE LOCATION = #{location}
+          AND AVAILABLE = 1
+          AND EXPECTED_EARLIEST_TIME &lt;= #{currentTime}
+          AND (TASK_STATUS = 0 OR TASK_TYPE = 1)
+        ORDER BY CREATE_TIME DESC
+    </select>
+
+    <update id="updateTaskStatus">
+        UPDATE WEATHER_REMINDER_TASK
+        SET TASK_STATUS = #{status}, UPDATE_TIME = NOW()
+        WHERE ID = #{id}
+    </update>
+
+    <update id="updateAvailable">
+        UPDATE WEATHER_REMINDER_TASK
+        SET AVAILABLE = #{available}, UPDATE_TIME = NOW()
+        WHERE ID = #{id}
+    </update>
+
+    <!-- 查询指定地区的一级灾害提醒任务 -->
+    <select id="selectLevel1TasksByLocation" resultType="com.wf.object.entity.ReminderTaskEntity">
+        SELECT * FROM WEATHER_REMINDER_TASK
+        WHERE LOCATION = #{location}
+          AND AVAILABLE = 1
+          AND DISASTER_LEVEL = 1
+          AND ALWAYS_REMIND = 1
+        ORDER BY CREATE_TIME DESC
+    </select>
+
+    <!-- 查询指定地区和天气码的二三级灾害提醒任务 -->
+    <select id="selectLevel2And3TasksByLocationAndWeatherCode" resultType="com.wf.object.entity.ReminderTaskEntity">
+        SELECT * FROM WEATHER_REMINDER_TASK
+        WHERE LOCATION = #{location}
+          AND AVAILABLE = 1
+          AND DISASTER_LEVEL IN (2, 3)
+          AND CONCERN_CONDITION = #{weatherCode}
+          AND (EXPECTED_EARLIEST_TIME IS NULL OR EXPECTED_EARLIEST_TIME &lt;= #{currentTime})
+          AND (EXPECTED_LATEST_TIME IS NULL OR EXPECTED_LATEST_TIME &gt;= #{currentTime})
+        ORDER BY CREATE_TIME DESC
+    </select>
+
+</mapper>

@@ -11,8 +11,9 @@ import com.wf.object.request.WeatherPermissionRequest;
 import com.wf.object.response.WeatherAskResponse;
 import com.wf.service.ContactService;
 import com.wf.service.WeatherGraphOrchestrator;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,12 +24,21 @@ import java.util.UUID;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class WeatherGraphOrchestratorImpl implements WeatherGraphOrchestrator {
 
     private final CompiledGraph weatherGraph;
     private final UserInfoMapper userInfoMapper;
     private final ContactService contactService;
+
+    @Autowired
+    public WeatherGraphOrchestratorImpl(
+            @Qualifier("weatherGraph") CompiledGraph weatherGraph,
+            UserInfoMapper userInfoMapper,
+            ContactService contactService) {
+        this.weatherGraph = weatherGraph;
+        this.userInfoMapper = userInfoMapper;
+        this.contactService = contactService;
+    }
 
     @Override
     public WeatherAskResponse process(String question) {

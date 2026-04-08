@@ -182,6 +182,116 @@ public class LocationUtils {
         }
     }
 
+    /**
+     * 根据IP地址获取城市名称
+     * 使用 ip-api.com 免费接口
+     *
+     * @param ip IP地址
+     * @return 城市名称，失败返回 null
+     */
+    public static String getCityByIp(String ip) {
+        if (ip == null || ip.isEmpty() || "127.0.0.1".equals(ip) || "localhost".equals(ip)) {
+            log.debug("[LocationUtils] 本地IP或空IP，返回默认城市");
+            return null;
+        }
+
+        try {
+            String url = "http://ip-api.com/json/" + ip + "?lang=zh-CN";
+            Request request = new Request.Builder()
+                    .url(url)
+                    .get()
+                    .build();
+
+            try (Response response = httpClient.newCall(request).execute()) {
+                if (!response.isSuccessful()) {
+                    log.error("[LocationUtils] IP查询请求失败: {}", response.code());
+                    return null;
+                }
+
+                String responseBody = response.body() != null ? response.body().string() : "";
+                if (responseBody.isEmpty()) {
+                    log.warn("[LocationUtils] IP查询返回空响应");
+                    return null;
+                }
+
+                JSONObject json = JSON.parseObject(responseBody);
+                String status = json.getString("status");
+
+                if (!"success".equals(status)) {
+                    log.warn("[LocationUtils] IP查询失败: {}", json.getString("message"));
+                    return null;
+                }
+
+                String city = json.getString("city");
+                log.info("[LocationUtils] IP {} 对应城市: {}", ip, city);
+                return city;
+            }
+        } catch (IOException e) {
+            log.error("[LocationUtils] IP查询IO异常: {}", e.getMessage());
+            return null;
+        } catch (Exception e) {
+            log.error("[LocationUtils] IP查询异常: {}", e.getMessage(), e);
+            return null;
+        }
+    }
+
+    /**
+     * 根据IP地址获取完整位置信息（包含城市、经纬度）
+     * 使用 ip-api.com 免费接口
+     *
+     * @param ip IP地址
+     * @return 包含city、lat、lon的Map，失败返回默认城市信息
+     */
+    public static Map<String, Object> getLocationMapByIp(String ip) {
+        if (ip == null || ip.isEmpty() || "127.0.0.1".equals(ip) || "localhost".equals(ip)) {
+            log.debug("[LocationUtils] 本地IP或空IP，返回默认位置信息");
+            return getDefaultGpsInfo();
+        }
+
+        try {
+            String url = "http://ip-api.com/json/" + ip + "?lang=zh-CN";
+            Request request = new Request.Builder()
+                    .url(url)
+                    .get()
+                    .build();
+
+            try (Response response = httpClient.newCall(request).execute()) {
+                if (!response.isSuccessful()) {
+                    log.error("[LocationUtils] IP查询请求失败: {}", response.code());
+                    return getDefaultGpsInfo();
+                }
+
+                String responseBody = response.body() != null ? response.body().string() : "";
+                if (responseBody.isEmpty()) {
+                    log.warn("[LocationUtils] IP查询返回空响应");
+                    return getDefaultGpsInfo();
+                }
+
+                JSONObject json = JSON.parseObject(responseBody);
+                String status = json.getString("status");
+
+                if (!"success".equals(status)) {
+                    log.warn("[LocationUtils] IP查询失败: {}", json.getString("message"));
+                    return getDefaultGpsInfo();
+                }
+
+                Map<String, Object> result = new HashMap<>();
+                result.put("city", json.getString("city"));
+                result.put("lat", json.getDouble("lat"));
+                result.put("lon", json.getDouble("lon"));
+                log.info("[LocationUtils] IP {} 对应位置: city={}, lat={}, lon={}",
+                        ip, result.get("city"), result.get("lat"), result.get("lon"));
+                return result;
+            }
+        } catch (IOException e) {
+            log.error("[LocationUtils] IP查询IO异常: {}", e.getMessage());
+            return getDefaultGpsInfo();
+        } catch (Exception e) {
+            log.error("[LocationUtils] IP查询异常: {}", e.getMessage(), e);
+            return getDefaultGpsInfo();
+        }
+    }
+
     public static void main(String[] args) {
         Map<String, Double> city = getCoordinatesByCityName("南通");
         System.out.println(city);

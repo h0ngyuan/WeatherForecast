@@ -1,10 +1,8 @@
 package com.wf.agent.tool;
 
 import cn.dev33.satoken.context.SaHolder;
-import com.alibaba.fastjson2.JSON;
-import com.alibaba.fastjson2.JSONObject;
-import com.wf.object.entity.ParamDataEntity;
-import com.wf.service.ParamService;
+import com.wf.mapper.CityInfoMapper;
+import com.wf.object.entity.CityInfoEntity;
 import com.wf.utils.LocationUtils;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.OkHttpClient;
@@ -23,7 +21,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -31,7 +28,7 @@ import java.util.stream.Collectors;
 public class LocationTool {
 
     @Autowired
-    private ParamService paramService;
+    private CityInfoMapper cityInfoMapper;
 
     /**
      * 获取离当前位置最近的可预测城市
@@ -104,8 +101,7 @@ public class LocationTool {
 
     @Tool(description = "判断我的系统里有没有这个城市的数据")
     public Boolean hasThisCity(@ToolParam(description = "这边传入的是当前城市的城市名称") String city){
-        List<ParamDataEntity> cities = paramService.getCities();
-        Set<?> set = cities.stream().map((Function<? super ParamDataEntity, ?>) c -> JSONObject.parseObject(c.getDescription()).get("city").toString()).collect(Collectors.toSet());
-        return set.contains(city);
+        CityInfoEntity cityInfo = cityInfoMapper.selectByCityName(city);
+        return cityInfo != null;
     }
 }

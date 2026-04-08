@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -31,5 +32,21 @@ public class ParamServiceImpl extends ServiceImpl<ParamMapper, ParamDataEntity> 
 
 
         return cityList;
+    }
+
+    @Override
+    public List<String> getAllLocations() {
+        // 从城市字典中获取所有地区名称（dict_type_id = 3 表示城市）
+        LambdaQueryWrapper<ParamDataEntity> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(ParamDataEntity::getDictTypeId, 3);
+        wrapper.eq(ParamDataEntity::getAvailable, 1);
+        wrapper.isNotNull(ParamDataEntity::getDescription);
+
+        List<ParamDataEntity> cityList = paramMapper.selectList(wrapper);
+
+        // 返回城市名称列表（使用 dict_value 作为地区名称）
+        return cityList.stream()
+                .map(ParamDataEntity::getDictValue)
+                .collect(Collectors.toList());
     }
 }

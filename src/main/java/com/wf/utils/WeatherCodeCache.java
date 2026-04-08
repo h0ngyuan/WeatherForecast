@@ -53,4 +53,11 @@ public class WeatherCodeCache {
     public static int getCacheSize() {
         return weatherCodeMap.size();
     }
+
+    /**
+     * 获取所有天气码值映射
+     */
+    public static Map<Integer, String> getAllWeatherCodes() {
+        return new HashMap<>(weatherCodeMap);
+    }
 }

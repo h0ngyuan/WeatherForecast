@@ -7,10 +7,16 @@ import com.wf.object.entity.UserInfoEntity;
 import com.wf.object.query.LoginQuery;
 import com.wf.service.CaptchaService;
 import com.wf.strategy.LoginStrategy;
+import com.wf.utils.LocationUtils;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
+
+import java.util.Map;
 
 @Slf4j
 @Component("emailLogin")
@@ -62,11 +68,6 @@ public class EmailLoginStrategy implements LoginStrategy {
             throw new RuntimeException("邮箱验证码错误");
         }
 
-
-        System.out.println(userInfoMapper.selectList(
-                new LambdaQueryWrapper<UserInfoEntity>()
-                        .eq(UserInfoEntity::getAvailable,1)));
-
         UserInfoEntity user = userInfoMapper.selectOne(
                 new LambdaQueryWrapper<UserInfoEntity>()
                         .eq(UserInfoEntity::getEmail,email)
@@ -74,6 +75,7 @@ public class EmailLoginStrategy implements LoginStrategy {
 
         if (user == null) {
             user = new UserInfoEntity();
+            user.setNickname("Nick_"+email);
             user.setEmail(email);
             user.setAccountSource(0);
             user.setRole("USER");
@@ -81,13 +83,73 @@ public class EmailLoginStrategy implements LoginStrategy {
             user.setWechatNotifyPermission(1);
             user.setEmailNotifyPermission(1);
             user.setPhoneNotifyPermission(1);
+
+            // 获取用户IP对应的城市
+            String city = getCityFromRequest();
+            if(city!=null){
+                user.setRegisterLocation(city);
+                log.info("新用户邮箱注册，email: {}, 城市: {}", email, city);
+            }
+
             userInfoMapper.insert(user);
-            log.info("新用户邮箱注册，email: {}", email);
         }
 
         redisTemplate.delete(redisKey);
         StpUtil.login(user.getId());
         log.info("用户邮箱登录成功，userId: {}", user.getId());
         return StpUtil.getTokenValue();
+    }
+
+    /**
+     * 从请求中获取用户IP对应的城市
+     */
+    private String getCityFromRequest() {
+        try {
+            ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+            if (attributes == null) {
+                log.warn("[EmailLoginStrategy] 无法获取请求属性");
+                return null;
+            }
+
+            HttpServletRequest request = attributes.getRequest();
+            String ip = getClientIp(request);
+
+            // 使用 LocationUtils 获取城市
+            Map<String, Object> locationMap = LocationUtils.getCurrentLocationMap();
+            if (locationMap != null && locationMap.get("city") != null) {
+                return (String) locationMap.get("city");
+            }
+        } catch (Exception e) {
+            log.error("[EmailLoginStrategy] 获取用户城市失败", e);
+        }
+        return null;
+    }
+
+    /**
+     * 获取客户端真实IP
+     */
+    private String getClientIp(HttpServletRequest request) {
+        String ip = request.getHeader("X-Forwarded-For");
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getHeader("Proxy-Client-IP");
+        }
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getHeader("WL-Proxy-Client-IP");
+        }
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getHeader("HTTP_CLIENT_IP");
+        }
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getHeader("HTTP_X_FORWARDED_FOR");
+        }
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getRemoteAddr();
+        }
+
+        if (ip != null && ip.contains(",")) {
+            ip = ip.split(",")[0].trim();
+        }
+
+        return ip;
     }
 }

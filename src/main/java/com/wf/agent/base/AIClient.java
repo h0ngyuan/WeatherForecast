@@ -1,5 +1,6 @@
 package com.wf.agent.base;
 
+import com.wf.agent.constants.DisasterPromptProvider;
 import com.wf.agent.constants.WeatherPromptProvider;
 import com.wf.agent.tool.LocationTool;
 import com.wf.agent.tool.MCPPredictionTool;
@@ -14,12 +15,15 @@ import org.springframework.stereotype.Service;
 
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.List;
+
 @Slf4j
 @Service
 public class AIClient {
 
     private final ChatClient chatClient;
     private final WeatherPromptProvider promptProvider;
+    private final DisasterPromptProvider disasterPromptProvider;
     private final TimeTool timeTool;
     private final LocationTool locationTool;
     private final WeatherPredictionTool weatherPredictionTool;
@@ -27,11 +31,13 @@ public class AIClient {
     private final MCPPredictionTool mcpPredictionTool;
 
     public AIClient(ChatClient.Builder chatClientBuilder, WeatherPromptProvider promptProvider,
+                    DisasterPromptProvider disasterPromptProvider,
                     TimeTool timeTool, LocationTool locationTool,
                     WeatherPredictionTool weatherPredictionTool, WeatherCodeTool weatherCodeTool,
                     MCPPredictionTool mcpPredictionTool) {
         this.chatClient = chatClientBuilder.build();
         this.promptProvider = promptProvider;
+        this.disasterPromptProvider = disasterPromptProvider;
         this.timeTool = timeTool;
         this.locationTool = locationTool;
         this.weatherPredictionTool = weatherPredictionTool;
@@ -131,6 +137,15 @@ public class AIClient {
 
     public String getForecastTransformPrompt(String forecastResult) {
         return promptProvider.getForecastTransformPrompt(forecastResult);
+    }
+
+    /**
+     * 分析灾害 - 紧急响应流程使用
+     */
+    public String analyzeDisasters(String location, List<Integer> weatherCodes) {
+        log.info("[AIClient] 分析 {} 的灾害，天气码: {}", location, weatherCodes);
+        String prompt = disasterPromptProvider.getDisasterAnalysisPrompt(location, weatherCodes);
+        return chatClient.prompt().user(prompt).call().content();
     }
 
     private double parseScore(String raw) {

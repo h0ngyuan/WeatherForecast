@@ -4,9 +4,9 @@ import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONArray;
 import com.alibaba.fastjson2.JSONObject;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.wf.object.entity.ParamDataEntity;
+import com.wf.mapper.CityInfoMapper;
+import com.wf.object.entity.CityInfoEntity;
 import com.wf.object.query.WeatherCodeQuery;
-import com.wf.service.ParamService;
 import com.wf.service.WeatherForecastService;
 import io.modelcontextprotocol.client.McpClient;
 import io.modelcontextprotocol.client.McpSyncClient;
@@ -32,7 +32,7 @@ import java.util.Map;
 public class MCPPredictionTool {
 
     private final WeatherForecastService localForecastService;
-    private final ParamService paramService;
+    private final CityInfoMapper cityInfoMapper;
 
     @Value("${mcp.weather.endpoint:https://dashscope.aliyuncs.com/api/v1/mcps/zuimei-getweather/sse}")
     private String mcpEndpoint;
@@ -136,7 +136,7 @@ public class MCPPredictionTool {
             }
             
             String jsonText = textContent.text();
-            log.info("收到MCP响应，开始解析JSON...");
+            log.info("收到MCP响应，响应为{}，开始解析JSON...",jsonText);
             
             // 直接解析JSON提取天气码
             List<String> weatherCodes = new ArrayList<>();
@@ -360,35 +360,21 @@ public class MCPPredictionTool {
         }
 
         try {
-            List<ParamDataEntity> cities = paramService.getCities();
-            if (cities == null || cities.isEmpty()) {
-                log.warn("城市列表为空，无法补全经纬度");
+            // 从 CITY_INFO 表查询城市经纬度
+            CityInfoEntity cityInfo = cityInfoMapper.selectByCityName(city);
+            if (cityInfo == null) {
+                log.warn("未找到城市 {} 的经纬度信息", city);
                 return;
             }
 
-            for (ParamDataEntity cityEntity : cities) {
-                String description = cityEntity.getDescription();
-                if (description == null || description.isEmpty()) {
-                    continue;
-                }
-
-                JSONObject cityInfo = JSON.parseObject(description);
-                String cityName = cityInfo.getString("city");
-
-                if (city != null && city.equals(cityName)) {
-                    Double lat = cityInfo.getDouble("latitude");
-                    Double lon = cityInfo.getDouble("longitude");
-
-                    if (lat != null && lon != null) {
-                        query.setLatitude(lat);
-                        query.setLongitude(lon);
-                        log.info("成功补全经纬度: city={}, lat={}, lon={}", city, lat, lon);
-                        return;
-                    }
-                }
+            if (cityInfo.getLatitude() != null && cityInfo.getLongitude() != null) {
+                query.setLatitude(cityInfo.getLatitude().doubleValue());
+                query.setLongitude(cityInfo.getLongitude().doubleValue());
+                log.info("成功补全经纬度: city={}, lat={}, lon={}", 
+                        city, cityInfo.getLatitude(), cityInfo.getLongitude());
+            } else {
+                log.warn("城市 {} 的经纬度信息不完整", city);
             }
-
-            log.warn("未找到城市 {} 对应的经纬度", city);
         } catch (Exception e) {
             log.error("补全经纬度失败: {}", e.getMessage(), e);
         }
