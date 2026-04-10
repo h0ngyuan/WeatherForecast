@@ -80,7 +80,7 @@ public class WeatherEmergencyJob {
      *    - alertTextGeneration: 生成预警文本
      * 4. 根据灾害级别分流通知
      */
-    @Scheduled(cron = "0 0/1 * * * ?")
+    @Scheduled(cron = "0 0 0/1 * * ?")
     public void dailyCheck() {
         log.info("========== [紧急响应] 每日天气检查任务开始 ==========");
 
@@ -155,7 +155,7 @@ public class WeatherEmergencyJob {
                         // 【Node】生成一级灾害预警文本
                         String level1AlertText = alertTextGenerationNode.generateLevel1Alert(location, level1Disasters);
 
-                        // 查询该地区的一级灾害提醒任务（alwaysRemind=1）
+                        // 查询该地区的一级灾害持续监控任务
                         List<ReminderTaskEntity> tasks = reminderTaskMapper.selectLevel1TasksByLocation(location);
                         int notifyCount = 0;
 
@@ -197,10 +197,10 @@ public class WeatherEmergencyJob {
                                         user.getEmail(), location, reminderText);
                                 notifyCount++;
 
-                                // 如果不是总是提醒，通知后设置 available=0
-                                if (task.getAlwaysRemind() == null || task.getAlwaysRemind() == 0) {
-                                    reminderTaskMapper.updateAvailable(task.getId(), 0);
-                                    log.debug("[紧急响应] 任务 {} 已标记为不可用", task.getId());
+                                // 如果是一次性任务，通知后设置 taskStatus=1
+                                if (task.getTaskType() == null || task.getTaskType() == 0) {
+                                    reminderTaskMapper.updateTaskStatus(task.getId(), 1);
+                                    log.debug("[紧急响应] 任务 {} 已标记为已执行", task.getId());
                                 }
                             }
                         }

@@ -76,13 +76,19 @@ public class WeatherGraphOrchestratorImpl implements WeatherGraphOrchestrator {
 
     @Override
     public WeatherAskResponse processWithThread(String question, Long userId) {
+        return processWithThread(question, userId, null);
+    }
+
+    @Override
+    public WeatherAskResponse processWithThread(String question, Long userId, Long sessionId) {
         log.info("========== WeatherGraph 开始处理(带Thread) ==========");
-        log.info("用户问题: {}, 用户ID: {}", question, userId);
+        log.info("用户问题: {}, 用户ID: {}, 会话ID: {}", question, userId, sessionId);
 
         String threadId = "weather-" + UUID.randomUUID().toString();
         Map<String, Object> initialState = new HashMap<>();
         initialState.put(WeatherGraphConstants.KEY_QUESTION, question);
         initialState.put(WeatherGraphConstants.KEY_USER_ID, userId);
+        initialState.put(WeatherGraphConstants.KEY_SESSION_ID, sessionId);
         initialState.put(WeatherGraphConstants.KEY_LOOP_COUNT, 1);
 
         log.info("初始化状态完成，threadId: {}", threadId);

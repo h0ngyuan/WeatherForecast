@@ -63,9 +63,6 @@ public class ReminderTaskEntity {
     /** 预计最晚执行时间 */
     private LocalDateTime expectedLatestTime;
 
-    /** 是否总是提醒：0=否，1=是 */
-    private Integer alwaysRemind;
-
     /** 创建时间 */
     private LocalDateTime createTime;
 

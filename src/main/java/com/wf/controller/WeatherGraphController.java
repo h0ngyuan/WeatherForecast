@@ -2,10 +2,17 @@ package com.wf.controller;
 
 import cn.dev33.satoken.stp.StpUtil;
 import com.wf.agent.tool.MCPPredictionTool;
+import com.wf.mapper.CityInfoMapper;
+import com.wf.object.entity.CityInfoEntity;
+import com.wf.utils.LocationUtils;
+import com.wf.object.entity.ChatHistoryEntity;
 import com.wf.object.request.WeatherAskRequest;
 import com.wf.object.request.WeatherPermissionRequest;
+import com.wf.object.request.WeatherSubscribeRequest;
 import com.wf.object.response.WeatherAskResponse;
+import com.wf.service.ChatHistoryService;
 import com.wf.service.MilvusService;
+import com.wf.service.ReminderTaskService;
 import com.wf.service.WeatherDataService;
 import com.wf.service.WeatherGraphOrchestrator;
 import io.swagger.v3.oas.annotations.Operation;
@@ -16,7 +23,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springblade.core.tool.api.R;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @RestController
@@ -28,6 +37,9 @@ public class WeatherGraphController {
     private final WeatherDataService weatherDataService;
     private final MilvusService milvusService;
     private final MCPPredictionTool mcpPredictionTool;
+    private final ReminderTaskService reminderTaskService;
+    private final ChatHistoryService chatHistoryService;
+    private final CityInfoMapper cityInfoMapper;
 
     @Operation(summary = "天气查询", description = "启动天气查询流程，支持人工干预机制。如果用户没有通知权限但需要发送预警，流程会暂停等待授权")
     @PostMapping("/query")
@@ -35,7 +47,34 @@ public class WeatherGraphController {
         try {
             Long userId = StpUtil.getLoginIdAsLong();
             log.info("查询天气，question={}, userId={}", request.getQuestion(), userId);
-            WeatherAskResponse result = orchestrator.processWithThread(request.getQuestion(), userId);
+
+            // 获取或创建会话
+            Long sessionId = request.getSessionId();
+            if (sessionId == null) {
+                sessionId = chatHistoryService.getOrCreateCurrentSession(userId);
+            }
+
+            // 保存用户消息
+            ChatHistoryEntity userMessage = new ChatHistoryEntity();
+            userMessage.setSessionId(sessionId);
+            userMessage.setUserId(userId);
+            userMessage.setRole("user");
+            userMessage.setContent(request.getQuestion());
+            userMessage.setMessageType(0); // 0=文本
+            chatHistoryService.saveMessage(userMessage);
+
+            // 执行查询
+            WeatherAskResponse result = orchestrator.processWithThread(request.getQuestion(), userId, sessionId);
+
+            // 保存AI回复
+            ChatHistoryEntity assistantMessage = new ChatHistoryEntity();
+            assistantMessage.setSessionId(sessionId);
+            assistantMessage.setUserId(userId);
+            assistantMessage.setRole("assistant");
+            assistantMessage.setContent(result.answer());
+            assistantMessage.setMessageType(0); // 0=文本
+            chatHistoryService.saveMessage(assistantMessage);
+
             return R.data(result);
         } catch (Exception e) {
             log.error("流程执行失败", e);
@@ -171,6 +210,151 @@ public class WeatherGraphController {
         } catch (Exception e) {
             log.error("MCP测试失败", e);
             return R.fail("MCP测试失败: " + e.getMessage());
+        }
+    }
+
+    @Operation(summary = "天气订阅", description = "用户订阅特定天气条件，当条件满足时发送通知")
+    @PostMapping("/subscribe")
+    public R<Long> subscribe(@Valid @RequestBody WeatherSubscribeRequest request) {
+        try {
+            Long userId = StpUtil.getLoginIdAsLong();
+
+            // 如果location为空，从请求IP解析
+            String cityName = request.getLocation();
+            Double latitude = null;
+            Double longitude = null;
+            if (cityName == null || cityName.isEmpty()) {
+                try {
+                    Map<String, Object> location = LocationUtils.getCurrentLocationMap();
+                    if (location != null && location.get("city") != null) {
+                        cityName = location.get("city").toString();
+                        latitude = (Double) location.get("lat");
+                        longitude = (Double) location.get("lon");
+                        log.info("从IP解析到城市: {}", cityName);
+                    } else {
+                        cityName = "成都";
+                    }
+                } catch (Exception e) {
+                    log.warn("IP解析城市失败，使用默认值", e);
+                    cityName = "成都";
+                }
+                request.setLocation(cityName);
+            }
+
+            // 检查并确保城市信息存在于 CITY_INFO 表中
+            ensureCityInfoExists(cityName, latitude, longitude);
+
+            log.info("用户订阅天气, userId={}, subscribeName={}, location={}, weatherCodes={}",
+                    userId, request.getSubscribeName(), request.getLocation(), request.getWeatherCodes());
+
+            Long taskId = reminderTaskService.createSubscribeTask(userId, request);
+            log.info("天气订阅创建成功, taskId={}", taskId);
+
+            return R.data(taskId, "订阅成功");
+        } catch (Exception e) {
+            log.error("天气订阅失败", e);
+            return R.fail("订阅失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 确保城市信息存在于 CITY_INFO 表中，不存在则插入
+     *
+     * @param cityName  城市名称
+     * @param latitude  纬度
+     * @param longitude 经度
+     */
+    private void ensureCityInfoExists(String cityName, Double latitude, Double longitude) {
+        try {
+            if (cityName == null || cityName.isEmpty()) {
+                log.warn("[WeatherGraphController] 城市名称为空，跳过CITY_INFO检查");
+                return;
+            }
+
+            // 查询城市是否已存在
+            CityInfoEntity existingCity = cityInfoMapper.selectByCityName(cityName);
+            if (existingCity != null) {
+                log.info("[WeatherGraphController] 城市 {} 已存在于CITY_INFO表中", cityName);
+                return;
+            }
+
+            // 城市不存在，插入新记录
+            CityInfoEntity newCity = new CityInfoEntity();
+            newCity.setCityName(cityName);
+            newCity.setCityCode(null);
+            newCity.setLatitude(latitude != null ? BigDecimal.valueOf(latitude) : null);
+            newCity.setLongitude(longitude != null ? BigDecimal.valueOf(longitude) : null);
+            newCity.setProvince(null);
+            newCity.setDistrict(null);
+            newCity.setCityLevel(3);
+            newCity.setTimezone("Asia/Shanghai");
+            newCity.setAvailable(1);
+            newCity.setIsHot(0);
+            newCity.setDescription("天气订阅时自动添加的城市");
+
+            cityInfoMapper.insert(newCity);
+            log.info("[WeatherGraphController] 成功插入新城市到CITY_INFO表: {}, 经纬度: ({}, {})",
+                    cityName, latitude, longitude);
+
+        } catch (Exception e) {
+            log.error("[WeatherGraphController] 检查/插入城市信息失败: {}", cityName, e);
+            // 不影响主流程
+        }
+    }
+
+    @Operation(summary = "获取聊天记录", description = "获取指定会话的聊天记录")
+    @GetMapping("/chat-history")
+    public R<List<ChatHistoryEntity>> getChatHistory(@RequestParam("sessionId") Long sessionId) {
+        try {
+            Long userId = StpUtil.getLoginIdAsLong();
+            log.info("获取聊天记录, sessionId={}, userId={}", sessionId, userId);
+            List<ChatHistoryEntity> messages = chatHistoryService.getSessionMessages(sessionId);
+            return R.data(messages);
+        } catch (Exception e) {
+            log.error("获取聊天记录失败", e);
+            return R.fail("获取聊天记录失败: " + e.getMessage());
+        }
+    }
+
+    @Operation(summary = "获取当前会话", description = "获取用户当前活跃的会话ID")
+    @GetMapping("/current-session")
+    public R<Long> getCurrentSession() {
+        try {
+            Long userId = StpUtil.getLoginIdAsLong();
+            Long sessionId = chatHistoryService.getOrCreateCurrentSession(userId);
+            return R.data(sessionId);
+        } catch (Exception e) {
+            log.error("获取当前会话失败", e);
+            return R.fail("获取当前会话失败: " + e.getMessage());
+        }
+    }
+
+    @Operation(summary = "创建新会话", description = "创建一个新的聊天会话")
+    @PostMapping("/new-session")
+    public R<Long> createNewSession(@RequestParam(value = "title", required = false) String title) {
+        try {
+            Long userId = StpUtil.getLoginIdAsLong();
+            Long sessionId = chatHistoryService.createSession(userId, title);
+            return R.data(sessionId, "会话创建成功");
+        } catch (Exception e) {
+            log.error("创建会话失败", e);
+            return R.fail("创建会话失败: " + e.getMessage());
+        }
+    }
+
+    @Operation(summary = "获取当前定位", description = "根据请求IP获取当前城市定位")
+    @GetMapping("/current-location")
+    public R<java.util.Map<String, Object>> getCurrentLocation() {
+        try {
+            java.util.Map<String, Object> location = LocationUtils.getCurrentLocationMap();
+            if (location == null) {
+                return R.fail("无法获取定位信息");
+            }
+            log.info("获取当前定位: {}", location);
+            return R.data(location);
+        } catch (Exception e) {
+            log.error("获取当前定位失败", e);
+            return R.fail("获取定位失败: " + e.getMessage());
         }
     }
 }

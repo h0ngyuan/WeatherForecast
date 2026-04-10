@@ -6,6 +6,8 @@ import com.wf.agent.constants.WeatherGraphConstants;
 import com.wf.agent.constants.WeatherPromptProvider;
 import com.wf.agent.tool.LocationTool;
 import com.wf.agent.tool.TimeTool;
+import com.wf.object.entity.ChatHistoryEntity;
+import com.wf.service.ChatHistoryService;
 import com.wf.service.MilvusService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
@@ -23,14 +25,17 @@ public class WeatherSemanticTransformNode implements NodeAction {
     private final WeatherPromptProvider promptProvider;
     private final TimeTool timeTool;
     private final LocationTool locationTool;
+    private final ChatHistoryService chatHistoryService;
 
     public WeatherSemanticTransformNode(MilvusService milvusService, ChatClient.Builder chatClientBuilder, 
-                                        WeatherPromptProvider promptProvider, TimeTool timeTool, LocationTool locationTool) {
+                                        WeatherPromptProvider promptProvider, TimeTool timeTool, 
+                                        LocationTool locationTool, ChatHistoryService chatHistoryService) {
         this.milvusService = milvusService;
         this.chatClient = chatClientBuilder.build();
         this.promptProvider = promptProvider;
         this.timeTool = timeTool;
         this.locationTool = locationTool;
+        this.chatHistoryService = chatHistoryService;
     }
 
     @Override
@@ -38,14 +43,23 @@ public class WeatherSemanticTransformNode implements NodeAction {
         log.info("---------- [transform节点] 开始执行 ----------");
         
         String question = state.value(WeatherGraphConstants.KEY_QUESTION, "");
-        log.info("原始问题: {}", question);
+        java.util.Optional<Object> sessionIdOpt = state.value(WeatherGraphConstants.KEY_SESSION_ID);
+        Long sessionId = sessionIdOpt.map(obj -> ((Number) obj).longValue()).orElse(null);
+        log.info("原始问题: {}, 会话ID: {}", question, sessionId);
+
+        // 获取历史上下文
+        List<ChatHistoryEntity> history = null;
+        if (sessionId != null) {
+            history = chatHistoryService.getRecentMessages(sessionId, 5); // 获取最近5条
+            log.info("获取到 {} 条历史消息", history.size());
+        }
 
         log.info("开始语义转化流程...");
-        String transformedQuestion = performSemanticTransform(question);
+        String transformedQuestion = performSemanticTransform(question, history);
         log.info("语义转化完成: {}", transformedQuestion);
 
         log.info("开始规范化流程...");
-        Map<String, String> result = performNormalization(transformedQuestion);
+        Map<String, String> result = performNormalization(transformedQuestion, history);
         log.info("规范化完成: {}", result.get("normalizedQuestion"));
         log.info("位置信息: {}", result.get("requestInfo"));
         log.info("活动类型: {}", result.get("activityType"));
@@ -67,13 +81,17 @@ public class WeatherSemanticTransformNode implements NodeAction {
     /**
      * 执行语义转化
      */
-    private String performSemanticTransform(String question) {
+    private String performSemanticTransform(String question, List<ChatHistoryEntity> history) {
         List<Map<String, Object>> ragResults = milvusService.milvusSearch(question);
         log.info("RAG检索到 {} 条相关知识", ragResults.size());
 
         String ragContext = buildRagContext(ragResults);
 
-        String prompt = promptProvider.getSemanticTransformPrompt(question, ragContext);
+        // 构建带历史上下文的提示词
+        String prompt = buildPromptWithHistory(
+            promptProvider.getSemanticTransformPrompt(question, ragContext),
+            history
+        );
         String response = chatClient.prompt().user(prompt).call().content();
         log.info("AI转化响应: {}", response);
 
@@ -83,13 +101,19 @@ public class WeatherSemanticTransformNode implements NodeAction {
     /**
      * 执行规范化
      */
-    private Map<String, String> performNormalization(String question) {
-        String prompt = promptProvider.getCompleteNormalizationPrompt(question);
+    private Map<String, String> performNormalization(String question, List<ChatHistoryEntity> history) {
+        // 构建带历史上下文的提示词
+        String prompt = buildPromptWithHistory(
+            promptProvider.getCompleteNormalizationPrompt(question),
+            history
+        );
         String response = chatClient.prompt().user(prompt).tools(timeTool, locationTool).call().content();
         log.info("AI规范化响应: {}", response);
 
         try {
-            com.alibaba.fastjson2.JSONObject json = com.alibaba.fastjson2.JSON.parseObject(response.trim());
+            // 提取 JSON 内容（处理 Markdown 代码块）
+            String jsonStr = extractJsonFromResponse(response.trim());
+            com.alibaba.fastjson2.JSONObject json = com.alibaba.fastjson2.JSON.parseObject(jsonStr);
             String normalizedQuestion = json.getString("normalizedQuestion");
             Object requestInfoObj = json.get("requestInfo");
             String requestInfo = requestInfoObj != null ? requestInfoObj.toString() : null;
@@ -113,6 +137,57 @@ public class WeatherSemanticTransformNode implements NodeAction {
             result.put("concernCondition", null);
             return result;
         }
+    }
+
+    /**
+     * 从 AI 响应中提取 JSON 内容
+     * 处理 Markdown 代码块和额外说明文字
+     */
+    private String extractJsonFromResponse(String response) {
+        // 尝试提取 ```json ... ``` 或 ``` ... ``` 中的内容
+        if (response.contains("```json")) {
+            int start = response.indexOf("```json") + 7;
+            int end = response.indexOf("```", start);
+            if (end > start) {
+                return response.substring(start, end).trim();
+            }
+        }
+        if (response.contains("```")) {
+            int start = response.indexOf("```") + 3;
+            int end = response.indexOf("```", start);
+            if (end > start) {
+                return response.substring(start, end).trim();
+            }
+        }
+        // 如果没有代码块，尝试直接找到 JSON 对象
+        int jsonStart = response.indexOf("{");
+        int jsonEnd = response.lastIndexOf("}");
+        if (jsonStart >= 0 && jsonEnd > jsonStart) {
+            return response.substring(jsonStart, jsonEnd + 1);
+        }
+        return response;
+    }
+
+    /**
+     * 构建带历史上下文的提示词
+     */
+    private String buildPromptWithHistory(String originalPrompt, List<ChatHistoryEntity> history) {
+        if (history == null || history.isEmpty()) {
+            return originalPrompt;
+        }
+
+        StringBuilder historyContext = new StringBuilder();
+        historyContext.append("\n\n【历史对话上下文】\n");
+        for (ChatHistoryEntity msg : history) {
+            if ("user".equals(msg.getRole())) {
+                historyContext.append("用户: ").append(msg.getContent()).append("\n");
+            } else if ("assistant".equals(msg.getRole())) {
+                historyContext.append("助手: ").append(msg.getContent()).append("\n");
+            }
+        }
+        historyContext.append("\n请结合以上历史对话理解当前问题。\n");
+
+        return originalPrompt + historyContext.toString();
     }
 
     /**

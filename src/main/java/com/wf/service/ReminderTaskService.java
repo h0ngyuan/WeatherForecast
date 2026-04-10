@@ -1,6 +1,7 @@
 package com.wf.service;
 
 import com.wf.object.request.ReminderTaskCreateRequest;
+import com.wf.object.request.WeatherSubscribeRequest;
 import com.wf.object.vo.ReminderTaskVO;
 
 import java.util.List;
@@ -78,4 +79,15 @@ public interface ReminderTaskService {
      * @param taskId 任务ID
      */
     void cancelTask(Long taskId);
+
+    /**
+     * 创建天气订阅任务
+     *
+     * 用户主动订阅特定天气条件，当条件满足时发送通知
+     *
+     * @param userId 用户ID
+     * @param request 订阅请求，包含地点、天气条件等信息
+     * @return 创建的任务ID
+     */
+    Long createSubscribeTask(Long userId, WeatherSubscribeRequest request);
 }

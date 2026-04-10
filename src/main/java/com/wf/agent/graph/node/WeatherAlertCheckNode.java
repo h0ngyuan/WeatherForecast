@@ -49,7 +49,9 @@ public class WeatherAlertCheckNode implements NodeAction {
             alertCheckResult = aiClient.performAlertCheck(originalQuestion, forecastResult, activityType, concernCondition);
             log.info("AI返回预警检查结果: {}", alertCheckResult);
 
-            JSONObject alertJson = JSON.parseObject(alertCheckResult);
+            // 提取 JSON 内容（处理 Markdown 代码块）
+            String jsonStr = extractJsonFromResponse(alertCheckResult);
+            JSONObject alertJson = JSON.parseObject(jsonStr);
             Boolean hasAlert = alertJson.getBoolean("hasAlert");
             if (hasAlert != null && hasAlert) {
                 needIntervention = true;
@@ -107,5 +109,34 @@ public class WeatherAlertCheckNode implements NodeAction {
 //                userId, hasPhonePermission, hasEmailPermission, hasWechatPermission);
 
         return hasEmailPermission;
+    }
+
+    /**
+     * 从 AI 响应中提取 JSON 内容
+     * 处理 Markdown 代码块和额外说明文字
+     */
+    private String extractJsonFromResponse(String response) {
+        // 尝试提取 ```json ... ``` 或 ``` ... ``` 中的内容
+        if (response.contains("```json")) {
+            int start = response.indexOf("```json") + 7;
+            int end = response.indexOf("```", start);
+            if (end > start) {
+                return response.substring(start, end).trim();
+            }
+        }
+        if (response.contains("```")) {
+            int start = response.indexOf("```") + 3;
+            int end = response.indexOf("```", start);
+            if (end > start) {
+                return response.substring(start, end).trim();
+            }
+        }
+        // 如果没有代码块，尝试直接找到 JSON 对象
+        int jsonStart = response.indexOf("{");
+        int jsonEnd = response.lastIndexOf("}");
+        if (jsonStart >= 0 && jsonEnd > jsonStart) {
+            return response.substring(jsonStart, jsonEnd + 1);
+        }
+        return response;
     }
 }

@@ -1,6 +1,7 @@
 package com.wf.utils;
 
 import cn.dev33.satoken.context.SaHolder;
+import cn.dev33.satoken.context.model.SaStorage;
 import cn.dev33.satoken.stp.StpUtil;
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONObject;
@@ -41,12 +42,14 @@ public class LocationUtils {
     @NotNull
     public static Map<String, Object> getCurrentLocationMap() throws UnknownHostException {
         String ip = getIp();
+        log.info("请求IP"+ip);
         if (ip == null || ip.isEmpty()) {
             return getDefaultGpsInfo();
         }
-        if (ip.equals("127.0.0.1")){
+        if (ip.equals("127.0.0.1")||ip.equals("0:0:0:0:0:0:0:1")){
             InetAddress localHost = InetAddress.getLocalHost();
             ip = localHost.getHostAddress();
+            log.info("遇到本机，IP改成"+ip);
         }
         try {
             String url = "http://ip-api.com/json/" + ip + "?lang=zh-CN";
@@ -62,6 +65,7 @@ public class LocationUtils {
                 }
             }
             JSONObject json = JSON.parseObject(responseBody);
+            log.info("这个是IP解析请求的返回值"+json.toJSONString());
             Map<String, Object> result = new HashMap<>();
             result.put("city", json.getString("city"));
             result.put("lat", json.getDouble("lat"));
@@ -83,6 +87,8 @@ public class LocationUtils {
     }
 
     public static String getIp() {
+        Object requestInfo = SaHolder.getStorage().get("requestInfo");
+        log.info("请求IP全"+JSONObject.toJSONString(requestInfo));
         return ((Map<String, Object>) SaHolder.getStorage().get("requestInfo")).get("remoteHost").toString();
     }
 

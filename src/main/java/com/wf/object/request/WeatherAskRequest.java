@@ -11,4 +11,7 @@ public class WeatherAskRequest {
     @NotBlank(message = "问题不能为空")
     @Schema(description = "用户的问题", required = true, example = "明天北京适合爬山吗？")
     private String question;
+
+    @Schema(description = "会话ID，不传则使用当前会话或创建新会话", required = false)
+    private Long sessionId;
 }

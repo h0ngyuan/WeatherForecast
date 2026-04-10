@@ -78,29 +78,18 @@ public class WeatherPromptProvider {
             相关知识:
             %s
 
-           
-            大类	WMO代码范围	包含天气现象
-            晴/无显著天气	00-03	晴、少云、云量无变化
-            霾/沙尘/浮尘	04-05	霾、烟尘、沙尘悬浮
-            轻雾/雾	10, 30-35	轻雾、雾、雾凇
-            毛毛雨	50-59	轻/中/重毛毛雨、冻毛毛雨
-            雨	60-69	轻/中/大雨、冻雨、雨夹雪
-            雪	70-79	轻/中/大雪、冰丸、霰
-            阵性降水	80-90	阵雨、阵雪、冰雹、雷暴伴降水
-            雷暴	91-99	干雷暴、雷暴伴雨/雪/冰雹、龙卷
-
-            【最美天气自定义代码（wid）映射表 - MCP服务使用】
-            wid	天气现象	降水概率参考	降水量参考	备注
-            1	晴	0~10%	0mm	白天/夜间
-            7	多云	0~20%	0mm	-
-            8	阴	10~30%	0mm	云层厚但无降水
-            15	雷阵雨	60~90%	5~30mm	强对流天气
-            33	雾/轻雾	-	-	vis<10km
-            46	小雨	70~90%	0.1~10mm	日常降雨
-            47	中雨	80~95%	10~25mm	持续降水
-            48	大雨	90~100%	25~50mm	强降水预警
-            49	暴雨	≥90%	≥50mm	极端天气
-            75	霾/沙尘	-	-	空气质量相关
+            【最美天气自定义代码（WID）映射表 - MCP服务返回的数据使用此编码】
+            WID	天气现象	降水概率参考	说明
+            1	晴	0~10%%	无降水，适合户外活动
+            7	多云	0~20%%	云量较多但无降水
+            8	阴	10~30%%	云层厚但无降水
+            15	雷阵雨	60~90%%	强对流天气，有雷电
+            33	雾/轻雾	-	能见度<10km
+            46	小雨	70~90%%	日常降雨
+            47	中雨	80~95%%	持续降水
+            48	大雨	90~100%%	强降水预警
+            49	暴雨	≥90%%	极端天气，≥50mm
+            75	霾/沙尘	-	空气质量差
 
             转化规则:
             1. 分析用户问题中的关键词，识别用户关心的天气条件和活动类型：
@@ -169,8 +158,11 @@ public class WeatherPromptProvider {
                - 活动决策类：询问是否适合某项活动（带伞、晒被子、洗车等），需要提取活动类型
 
             2. 分析地点信息：
-               - 如果用户问题中有明确的城市名称，使用 locationTool.hasThisCity(city) 判断该城市是否在系统中
-               - 如果城市不在系统中或没有明确地点，使用 locationTool.getNearestAvailableCity() 获取最近的可预测城市
+               - 如果用户问题中有明确的城市名称，调用 locationTool.getCityLocation(city) 获取城市经纬度
+               - 如果返回结果中包含 "needAiHelp": true，说明API无法获取该城市经纬度：
+                 * 你需要根据你的知识直接提供该城市的经纬度
+                 * 然后调用 locationTool.saveCityToDatabase(city, latitude, longitude) 将城市信息保存到数据库
+               - 如果没有明确地点，调用 locationTool.getNearestAvailableCity() 获取IP定位的城市和经纬度（该方法也会自动将城市添加到数据库）
 
             3. 分析时间信息：
                - 调用 timeTool.acquireFormatHourTime(0, TimeUnit.DAYS) 获取当前时间
@@ -204,7 +196,7 @@ public class WeatherPromptProvider {
 
             示例：
             用户问题："明天要带伞吗"
-            调用locationTool.getNearestAvailableCity()获取：{"city":"成都","latitude":30.5728,"longitude":104.0668}
+            没有明确地点，调用locationTool.getNearestAvailableCity()获取：{"city":"成都","latitude":30.5728,"longitude":104.0668}
             调用timeTool.acquireFormatHourTime(0, TimeUnit.DAYS)获取当前日期
             计算明天：2026-02-05 00:00:00到2026-02-05 23:59:59
             输出：
@@ -221,22 +213,47 @@ public class WeatherPromptProvider {
               "concernCondition": "是否有降雨"
             }
 
-            用户问题："后天能晒被子吗"
+            用户问题："北京明天能晒被子吗"
+            明确地点"北京"，调用locationTool.getCityLocation("北京")获取：{"city":"北京","latitude":39.9042,"longitude":116.4074}
+            调用timeTool.acquireFormatHourTime(0, TimeUnit.DAYS)获取当前日期
+            计算明天：2026-02-05 00:00:00到2026-02-05 23:59:59
             输出：
             {
-              "normalizedQuestion": "2026-02-06 00:00:00到2026-02-06 23:59:59之间 成都 是否晴天/无降雨",
+              "normalizedQuestion": "2026-02-05 00:00:00到2026-02-05 23:59:59之间 北京 是否晴天/无降雨",
               "requestInfo": {
-                "beginTime": "2026-02-06 00:00:00",
-                "endTime": "2026-02-06 23:59:59",
-                "city": "成都",
-                "latitude": 30.5728,
-                "longitude": 104.0668
+                "beginTime": "2026-02-05 00:00:00",
+                "endTime": "2026-02-05 23:59:59",
+                "city": "北京",
+                "latitude": 39.9042,
+                "longitude": 116.4074
               },
               "activityType": "晒被子决策",
               "concernCondition": "是否晴天/无降雨"
             }
 
+            用户问题："某小众城市明天天气怎么样"
+            明确地点"某小众城市"，调用locationTool.getCityLocation("某小众城市")返回：{"city":"某小众城市","needAiHelp":true,"message":"无法通过API获取某小众城市的经纬度..."}
+            由于needAiHelp为true：
+              - 你根据知识提供该城市经纬度：latitude=25.1234, longitude=118.5678
+              - 调用locationTool.saveCityToDatabase("某小众城市", 25.1234, 118.5678)保存到数据库
+            调用timeTool.acquireFormatHourTime(0, TimeUnit.DAYS)获取当前日期
+            计算明天：2026-02-05 00:00:00到2026-02-05 23:59:59
+            输出：
+            {
+              "normalizedQuestion": "2026-02-05 00:00:00到2026-02-05 23:59:59之间 某小众城市 的天气状况",
+              "requestInfo": {
+                "beginTime": "2026-02-05 00:00:00",
+                "endTime": "2026-02-05 23:59:59",
+                "city": "某小众城市",
+                "latitude": 25.1234,
+                "longitude": 118.5678
+              },
+              "activityType": null,
+              "concernCondition": null
+            }
+
             用户问题："今天天气怎么样"
+            没有明确地点，调用locationTool.getNearestAvailableCity()获取：{"city":"成都","latitude":30.5728,"longitude":104.0668}
             输出：
             {
               "normalizedQuestion": "2026-02-04 00:00:00到2026-02-04 23:59:59之间 成都 的天气状况",
@@ -324,129 +341,23 @@ public class WeatherPromptProvider {
 
             原始预测数据: %s
             
-            【天气码解释规则】
+            【天气码解释规则 - 最美天气WID】
             
-            注意：如果数据来自MCP服务，使用的是"最美天气自定义代码（wid）"，映射如下：
-            wid  天气现象        说明
-            1    晴              无降水，适合户外活动
-            7    多云            云量较多但无降水
-            8    阴              云层厚但无降水
-            15   雷阵雨          强对流，有雷电
-            33   雾/轻雾         能见度<10km
-            46   小雨            日常降雨
-            47   中雨            持续降水
-            48   大雨            强降水
-            49   暴雨            极端天气，≥50mm
-            75   霾/沙尘         空气质量差
-            
-            【WMO天气码（ww）解释规则】
-            
-            核心规则：
-            - ww = 00–49：观测时刻无降水落在站点
-            - ww = 50–99：观测时刻有降水落在站点
-            
-            详细分类：
-            00–19：无降水、雾、沙尘暴、吹雪（除 11/12 外）
-            20–29：过去一小时有降水/雾/雷暴，但当前无
-            30–39：沙尘暴/吹雪
-            40–49：当前有雾/冰雾
-            50–59：毛毛雨（drizzle）
-            60–69：雨（rain）
-            70–79：固态降水（非阵性：雪/冰粒）
-            80–99：阵性降水或伴随雷暴
-            
-            关键代码映射表：
-            代码    天气现象（英文）                        中文释义
-            00      Cloud development not observed        云无显著变化
-            04      Visibility reduced by smoke           烟幕
-            05      Haze                                  霾
-            06      Widespread dust                       浮尘
-            07      Dust or sand raised by wind           扬沙
-            08      Well-developed dust/sand whirls       尘/沙旋风
-            09      Duststorm or sandstorm                尘/沙暴
-            10      Mist                                  轻雾
-            11      Patches of shallow fog                浅雾 patches
-            12      Continuous shallow fog                连续浅雾
-            15      Precipitation distant                 远距离降水
-            16      Precipitation near                    邻近降水
-            17      Thunderstorm no precipitation         雷暴无降水
-            18      Squalls                               飑线
-            19      Funnel cloud                          漏斗云/龙卷
-            20–29   Past phenomena                        过去一小时现象
-            30      Slight/moderate duststorm             轻度/中度沙尘暴
-            31      Slight/moderate duststorm             轻度/中度沙尘暴
-            32      Severe duststorm                      强沙尘暴
-            33      Severe duststorm                      强沙尘暴
-            34      Severe duststorm                      强沙尘暴
-            35      Severe duststorm                      强沙尘暴
-            36      Slight/moderate blowing snow          轻度/中度吹雪
-            37      Heavy drifting snow                   大雪飘
-            38      Slight/moderate blowing snow          轻度/中度吹雪
-            39      Heavy drifting snow                   大雪飘
-            40      Fog at a distance                     远处有雾
-            41      Patches of fog                        雾 patches
-            42        Fog sky visible                     雾（可见天空）
-            43        Fog sky invisible                   雾（不可见天空）
-            44        Fog                                 雾
-            45        Fog                                 雾
-            46        Fog                                 雾
-            47        Fog                                 雾
-            48        Fog depositing rime                 雾凇
-            49        Fog depositing rime                 雾凇
-            50        Slight drizzle                      轻微毛毛雨
-            51        Moderate drizzle                    中度毛毛雨
-            52        Dense drizzle                       密集毛毛雨
-            53        Light rain                          小雨
-            54        Moderate rain                       中雨
-            55        Heavy rain                          大雨
-            56        Light freezing drizzle              轻微冻毛毛雨
-            57        Heavy freezing drizzle              重度冻毛毛雨
-            58        Rain and drizzle                    雨夹毛毛雨
-            59        Heavy rain and drizzle              大雨夹毛毛雨
-            60        Slight rain                         轻微雨
-            61        Moderate rain                       中度雨
-            62        Heavy rain                          重度雨
-            63        Continuous slight rain              连续轻微雨
-            64        Continuous moderate rain            连续中度雨
-            65        Continuous heavy rain               连续大雨
-            66        Slight freezing rain                轻微冻雨
-            67        Moderate/heavy freezing rain        中度/重度冻雨
-            68        Slight rain and snow                轻微雨夹雪
-            69        Moderate/heavy rain and snow        中度/重度雨夹雪
-            70        Slight snow                         轻微雪
-            71        Moderate snow                       中度雪
-            72        Heavy snow                          重度雪
-            73        Continuous slight snow              连续轻微雪
-            74        Continuous moderate snow            连续中度雪
-            75        Continuous heavy snow               连续大雪
-            76        Diamond dust                        钻尘
-            77        Snow grains                         雪粒
-            78        Ice pellets                         冰丸
-            79        Ice pellets                         冰丸
-            80        Slight rain showers                 轻微阵雨
-            81        Moderate rain showers               中度阵雨
-            82        Heavy rain showers                  重度阵雨
-            83        Slight snow showers                 轻微阵雪
-            84        Moderate snow showers               中度阵雪
-            85        Heavy snow showers                  重度阵雪
-            86        Slight hail/snow pellet showers     轻微冰雹/雪丸阵
-            87        Moderate/heavy hail showers         中度/重度冰雹阵
-            88        Slight snow pellet showers          轻微雪丸阵
-            89        Heavy snow pellet showers           重度雪丸阵
-            90        Slight hail showers                 轻微冰雹阵
-            91        Slight rain thunderstorm            轻微雷雨
-            92        Moderate/heavy rain thunderstorm    中度/重度雷雨
-            93        Slight snow/hail thunderstorm       轻微雷暴伴雪/冰雹
-            94        Moderate/heavy snow thunderstorm    中度/重度雷暴伴雪
-            95        Slight/moderate thunderstorm        轻度/中度雷暴
-            96        Slight/moderate thunderstorm hail   轻度/中度雷暴伴冰雹
-            97        Heavy thunderstorm                  重度雷暴
-            98        Thunderstorm with dust/sandstorm    雷暴伴尘/沙暴
-            99        Heavy thunderstorm with hail        重度雷暴伴冰雹
-            
+            数据来自MCP服务，使用的是"最美天气自定义代码（wid）"，映射如下：
+            wid  天气现象        降水概率    说明
+            1    晴              0~10%%      无降水，适合户外活动
+            7    多云            0~20%%      云量较多但无降水
+            8    阴              10~30%%     云层厚但无降水
+            15   雷阵雨          60~90%%     强对流，有雷电
+            33   雾/轻雾         -           能见度<10km
+            46   小雨            70~90%%     日常降雨
+            47   中雨            80~95%%     持续降水
+            48   大雨            90~100%%    强降水
+            49   暴雨            ≥90%%       极端天气，≥50mm
+            75   霾/沙尘         -           空气质量差
             请按照以下步骤操作：
-            1. 分析原始数据中的天气码序列
-            2. 根据上述天气码映射表，将每个天气码转换为对应的中文天气描述
+            1. 分析原始数据中的天气码序列（最美天气WID格式）
+            2. 根据上述WID映射表，将每个天气码转换为对应的中文天气描述
             3. 根据转换后的天气描述和时间序列，生成自然的语言表达
             
             转化规则：
@@ -456,10 +367,10 @@ public class WeatherPromptProvider {
             - 只需如实翻译天气码对应的天气现象，不需要添加预警或建议
             
             示例：
-            - "0,0,0" -> 全天云无显著变化
-            - "10,10,51,51,65,65" -> 上午轻雾，中午中度毛毛雨，下午连续大雨
-            - "60,61,80,80,95,95" -> 上午轻微雨转中度雨，中午阵雨，下午雷暴
-            - "5,5,32,32,60,60" -> 上午霾，中午强沙尘暴，下午轻微雨
+            - "1,1,1" -> 全天晴
+            - "33,33,1,1,46,46" -> 清晨至上午有雾，中午晴，下午小雨
+            - "1,7,7,8,46,46" -> 上午晴转多云，中午阴，下午小雨
+            - "46,47,48,48,49,49" -> 上午小雨转中雨，中午大雨，下午暴雨
             
             请直接返回转化后的描述，不要包含其他解释。
             """.formatted(forecastResult);
@@ -467,98 +378,74 @@ public class WeatherPromptProvider {
 
     public String getAlertCheckPrompt(String originalQuestion, String forecastResult, String activityType, String concernCondition) {
         return """
-            你是一个天气预警分析专家。请根据用户的活动类型和关心的天气条件，分析是否需要创建天气提醒任务。
+            你是一个天气提醒任务分析专家。请根据以下通用规则判断是否需要创建提醒任务。
 
+            【输入信息】
             用户原始问题: %s
-
             天气预测结果: %s
-
             活动类型: %s
-
             关心的天气条件: %s
 
-            核心逻辑说明：
-            天气预报具有不确定性，当前预测可能与实际情况不符。当用户询问特定天气相关问题时，
-            意味着用户关心该天气情况，需要系统持续监控天气变化，并在天气条件改变时通知用户。
+            【核心判断逻辑】
 
-            分析规则：
-            1. 如果活动类型不为空，说明用户需要针对该活动进行天气决策，必须创建提醒任务（hasAlert = true）
-            2. 如果活动类型为空，说明是普通天气查询，不需要创建提醒任务（hasAlert = false）
+            判断用户意图类型：
 
-            提醒任务信息：
-            - taskType: 直接使用传入的活动类型
-            - concernCondition: 直接使用传入的关心条件
-            - currentPrediction: 根据天气预测结果填写
-            - monitoringPeriod: 根据用户问题中的时间推断
-            - notifyCondition: 根据关心的条件设置触发通知的条件
+            1. 活动决策型（必须创建任务）
+               特征：用户需要根据天气做某个具体决定
+               判断条件：活动类型不为空
+               处理方式：hasAlert=true, taskType=活动类型
 
-            输出格式（JSON）:
+            2. 时间关注型（必须创建任务）
+               特征：用户关心某种天气现象何时发生（而非当前是否发生）
+               判断条件：问题中包含时间询问词 + 天气现象词
+               时间询问词：什么时候、何时、啥时候、多久
+               天气现象词：雨、雪、风、降温、升温、雾、霾等
+               处理方式：hasAlert=true, taskType="天气关注"
+
+            3. 状态查询型（不创建任务）
+               特征：用户只想了解当前或未来某时的天气状况
+               判断条件：问题只询问天气状态，无时间关注或活动决策
+               关键词：天气怎么样、天气如何、气温多少、会下雨吗（仅问当前）
+               处理方式：hasAlert=false
+
+            【判断公式】
+            hasAlert = (活动类型 != null) OR (包含时间询问词 AND 包含天气现象词)
+
+            【输出格式】
             {
               "hasAlert": true/false,
               "alertLevel": "无/低/中/高/极高",
               "alertType": ["降雨", "高温", "低温", "大风", "暴雪", "雷电"],
-              "alertMessage": "预警或提醒描述",
+              "alertMessage": "当前天气状况说明",
               "suggestion": "给用户的建议",
               "reminderTask": {
                 "taskType": "任务类型",
-                "concernCondition": "用户关心的天气条件",
-                "currentPrediction": "当前预测结果",
-                "monitoringPeriod": "监控时间范围",
-                "notifyCondition": "触发通知的条件"
+                "concernCondition": "关心的天气条件",
+                "currentPrediction": "当前预测",
+                "monitoringPeriod": "监控时间",
+                "notifyCondition": "通知触发条件",
+                "disasterLevel": 1/2/3
               }
             }
 
-            示例：
-            - 活动类型="带伞决策"，关心条件="是否有降雨"，预测晴天：
-            {
-              "hasAlert": true,
-              "alertLevel": "低",
-              "alertType": ["降雨"],
-              "alertMessage": "当前预测无降雨，但天气可能变化",
-              "suggestion": "根据当前预测不需要带伞，但建议出门前再次确认天气",
-              "reminderTask": {
-                "taskType": "带伞决策",
-                "concernCondition": "是否有降雨",
-                "currentPrediction": "晴天，无降雨",
-                "monitoringPeriod": "用户指定时间之前",
-                "notifyCondition": "预测变为有降雨"
-              }
-            }
+            【disasterLevel评定】
+            - 1级：暴雨、暴雪、台风、极端温度
+            - 2级：大雨、大风、雷电、大雾
+            - 3级：小雨、多云、一般天气
 
-            - 活动类型="晒被子决策"，关心条件="是否晴天/无降雨"，预测有雨：
-            {
-              "hasAlert": true,
-              "alertLevel": "中",
-              "alertType": ["降雨"],
-              "alertMessage": "预测有降雨天气，不适合晒被子",
-              "suggestion": "建议选择其他时间晒被子",
-              "reminderTask": {
-                "taskType": "晒被子决策",
-                "concernCondition": "是否晴天/无降雨",
-                "currentPrediction": "有降雨",
-                "monitoringPeriod": "用户指定时间之前",
-                "notifyCondition": "预测变为晴天"
-              }
-            }
+            【通用处理原则】
+            - 用户需要"决策"或"关注时间" → 创建任务
+            - 用户只是"查询状态" → 不创建任务
+            - 不确定时，优先不创建任务
 
-            - 活动类型=null（普通天气查询）：
-            {
-              "hasAlert": false,
-              "alertLevel": "无",
-              "alertType": [],
-              "alertMessage": "无特殊预警",
-              "suggestion": "",
-              "reminderTask": null
-            }
-
-            请直接返回JSON格式的结果，不要包含其他解释。
+            请直接返回JSON，不要其他解释。
             """.formatted(originalQuestion, forecastResult != null ? forecastResult : "未获取到天气预测数据",
                          activityType != null ? activityType : "无",
                          concernCondition != null ? concernCondition : "无");
     }
 
     public String getFinalGeneratePrompt(String originalQuestion, String normalizedQuestion, String forecastResult, String generateResult, String alertCheckResult) {
-        return """
+        String basePrompt = """
             你是一个专业的气象专家，请根据以下信息给出准确、简洁、自然的最终回答。
 
             用户原始问题: %s
@@ -567,18 +454,53 @@ public class WeatherPromptProvider {
 
             天气预测结果: %s
 
-            初步生成答案: %s
-
             预警检查结果: %s
 
             回答要求:
-            1. 基于初步生成答案，结合预警检查结果给出最终回答
-            2. 如果预警检查结果中有预警信息（hasAlert为true），必须在回答中包含预警内容和建议
-            3. 如果预警检查结果中无预警信息，直接使用初步生成答案
+            1. 基于天气预测结果，结合预警检查结果给出最终回答
+            2. 如果预警检查结果中有预警信息（hasAlert为true）：
+               - 必须在回答中包含预警内容和建议
+               - 如果reminderTask不为null，必须明确告知用户"已为您记录天气关注任务，当天气条件变化时会及时通知您"
+            3. 如果预警检查结果中无预警信息，直接基于天气预测结果回答
             4. 回答要自然流畅，符合用户的原始提问方式
             5. 保持友好和专业的语气
 
             请给出最终回答:
-            """.formatted(originalQuestion, normalizedQuestion, forecastResult != null ? forecastResult : "未获取到天气预测数据", generateResult != null ? generateResult : "未生成初步答案", alertCheckResult != null ? alertCheckResult : "未进行预警检查");
+            """;
+        
+        if (generateResult != null && !generateResult.isEmpty() && !generateResult.equals("未生成初步答案")) {
+            basePrompt = """
+                你是一个专业的气象专家，请根据以下信息给出准确、简洁、自然的最终回答。
+
+                用户原始问题: %s
+
+                规范化问题（包含精确时间范围）: %s
+
+                天气预测结果: %s
+
+                初步生成答案: %s
+
+                预警检查结果: %s
+
+                回答要求:
+                1. 基于初步生成答案，结合预警检查结果给出最终回答
+                2. 如果预警检查结果中有预警信息（hasAlert为true）：
+                   - 必须在回答中包含预警内容和建议
+                   - 如果reminderTask不为null，必须明确告知用户"已为您记录天气关注任务，当天气条件变化时会及时通知您"
+                3. 如果预警检查结果中无预警信息，直接使用初步生成答案
+                4. 回答要自然流畅，符合用户的原始提问方式
+                5. 保持友好和专业的语气
+
+                请给出最终回答:
+                """;
+            return basePrompt.formatted(originalQuestion, normalizedQuestion, 
+                forecastResult != null ? forecastResult : "未获取到天气预测数据", 
+                generateResult, 
+                alertCheckResult != null ? alertCheckResult : "未进行预警检查");
+        }
+        
+        return basePrompt.formatted(originalQuestion, normalizedQuestion, 
+            forecastResult != null ? forecastResult : "未获取到天气预测数据", 
+            alertCheckResult != null ? alertCheckResult : "未进行预警检查");
     }
 }

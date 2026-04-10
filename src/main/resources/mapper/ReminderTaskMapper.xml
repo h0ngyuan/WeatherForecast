@@ -7,15 +7,34 @@
             USER_ID, ORIGINAL_QUESTION, CONCERN_WORD, CONCERN_CONDITION,
             TASK_TYPE, NOTIFY_CONDITION, LOCATION, TASK_STATUS,
             EXPECTED_EARLIEST_TIME, NOTIFY_BY_EMAIL, NOTIFY_BY_SMS, NOTIFY_BY_WECHAT,
-            AVAILABLE, DISASTER_LEVEL, EXPECTED_LATEST_TIME, ALWAYS_REMIND,
+            AVAILABLE, DISASTER_LEVEL, EXPECTED_LATEST_TIME,
             CREATE_TIME, UPDATE_TIME
         ) VALUES (
             #{userId}, #{originalQuestion}, #{concernWord}, #{concernCondition},
             #{taskType}, #{notifyCondition}, #{location}, #{taskStatus},
             #{expectedEarliestTime}, #{notifyByEmail}, #{notifyBySms}, #{notifyByWechat},
-            #{available}, #{disasterLevel}, #{expectedLatestTime}, #{alwaysRemind},
+            #{available}, #{disasterLevel}, #{expectedLatestTime},
             NOW(), NOW()
         )
+    </insert>
+
+    <insert id="batchInsert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO WEATHER_REMINDER_TASK (
+            USER_ID, ORIGINAL_QUESTION, CONCERN_WORD, CONCERN_CONDITION,
+            TASK_TYPE, NOTIFY_CONDITION, LOCATION, TASK_STATUS,
+            EXPECTED_EARLIEST_TIME, NOTIFY_BY_EMAIL, NOTIFY_BY_SMS, NOTIFY_BY_WECHAT,
+            AVAILABLE, DISASTER_LEVEL, EXPECTED_LATEST_TIME,
+            CREATE_TIME, UPDATE_TIME
+        ) VALUES
+        <foreach collection="list" item="item" separator=",">
+            (
+                #{item.userId}, #{item.originalQuestion}, #{item.concernWord}, #{item.concernCondition},
+                #{item.taskType}, #{item.notifyCondition}, #{item.location}, #{item.taskStatus},
+                #{item.expectedEarliestTime}, #{item.notifyByEmail}, #{item.notifyBySms}, #{item.notifyByWechat},
+                #{item.available}, #{item.disasterLevel}, #{item.expectedLatestTime},
+                NOW(), NOW()
+            )
+        </foreach>
     </insert>
 
     <select id="selectById" resultType="com.wf.object.entity.ReminderTaskEntity">
@@ -55,7 +74,7 @@
         WHERE LOCATION = #{location}
           AND AVAILABLE = 1
           AND DISASTER_LEVEL = 1
-          AND ALWAYS_REMIND = 1
+          AND TASK_TYPE = 1
         ORDER BY CREATE_TIME DESC
     </select>
 
@@ -64,6 +83,7 @@
         SELECT * FROM WEATHER_REMINDER_TASK
         WHERE LOCATION = #{location}
           AND AVAILABLE = 1
+          AND TASK_STATUS = 0
           AND DISASTER_LEVEL IN (2, 3)
           AND CONCERN_CONDITION = #{weatherCode}
           AND (EXPECTED_EARLIEST_TIME IS NULL OR EXPECTED_EARLIEST_TIME &lt;= #{currentTime})

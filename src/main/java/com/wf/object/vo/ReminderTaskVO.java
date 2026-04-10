@@ -57,9 +57,6 @@ public class ReminderTaskVO {
     /** 最晚时间 */
     private LocalDateTime endTime;
 
-    /** 是否总是提醒：0=否，1=是 */
-    private Integer alwaysRemind;
-
     /** 创建时间 */
     private LocalDateTime createTime;
 }

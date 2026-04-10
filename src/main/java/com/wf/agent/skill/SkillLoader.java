@@ -93,8 +93,13 @@ public class SkillLoader {
             String content = Files.readString(skillFile);
             SkillDocument doc = parseSkillDocument(content);
             doc.setPath(skillDir.toString());
-            skillCache.put(doc.getName(), doc);
-            log.info("[SkillLoader] 加载 Skill: {} - {}", doc.getName(), doc.getDescription());
+            String skillName = doc.getName();
+            if (skillName == null || skillName.isEmpty()) {
+                skillName = skillDir.getFileName().toString();
+                doc.setName(skillName);
+            }
+            skillCache.put(skillName, doc);
+            log.info("[SkillLoader] 加载 Skill: {} - {}", skillName, doc.getDescription());
         } catch (IOException e) {
             log.error("[SkillLoader] 读取 Skill 文件失败: {}", skillFile, e);
         }

@@ -113,7 +113,7 @@ public class UserRegistrationAspect {
             task.setAvailable(1); // 可用
             task.setDisasterLevel(1); // 一级灾害
             task.setExpectedLatestTime(null); // 无最晚时间限制
-            task.setAlwaysRemind(1); // 总是提醒
+            task.setTaskType(1); // 持续监控
 
             reminderTaskMapper.insert(task);
 

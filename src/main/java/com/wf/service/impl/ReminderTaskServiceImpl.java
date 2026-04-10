@@ -3,6 +3,7 @@ package com.wf.service.impl;
 import com.wf.mapper.ReminderTaskMapper;
 import com.wf.object.entity.ReminderTaskEntity;
 import com.wf.object.request.ReminderTaskCreateRequest;
+import com.wf.object.request.WeatherSubscribeRequest;
 import com.wf.object.vo.ReminderTaskVO;
 import com.wf.service.ReminderTaskService;
 import lombok.RequiredArgsConstructor;
@@ -45,6 +46,9 @@ public class ReminderTaskServiceImpl implements ReminderTaskService {
         }
         if (entity.getExpectedEarliestTime() == null) {
             entity.setExpectedEarliestTime(LocalDateTime.now());
+        }
+        if (entity.getDisasterLevel() == null) {
+            entity.setDisasterLevel(3); // 默认3级（轻微）
         }
         entity.setNotifyByEmail(1);
         entity.setNotifyBySms(0);
@@ -95,6 +99,43 @@ public class ReminderTaskServiceImpl implements ReminderTaskService {
     public void cancelTask(Long taskId) {
         reminderTaskMapper.updateAvailable(taskId, 0);
         log.info("任务已取消, taskId={}", taskId);
+    }
+
+    @Override
+    public Long createSubscribeTask(Long userId, WeatherSubscribeRequest request) {
+        log.info("创建天气订阅任务, userId={}, subscribeName={}, location={}, weatherCodes={}",
+                userId, request.getSubscribeName(), request.getLocation(), request.getWeatherCodes());
+
+        // 构建任务列表
+        List<ReminderTaskEntity> entities = new java.util.ArrayList<>();
+        for (Integer weatherCode : request.getWeatherCodes()) {
+            ReminderTaskEntity entity = new ReminderTaskEntity();
+            entity.setUserId(userId);
+            entity.setOriginalQuestion(request.getSubscribeName());
+            entity.setConcernWord("天气订阅");
+            entity.setConcernCondition(weatherCode);
+            entity.setTaskType(request.getTaskType() != null ? request.getTaskType() : 1); // 默认总是提醒
+            entity.setNotifyCondition(request.getNotifyCondition());
+            entity.setLocation(request.getLocation());
+            entity.setExpectedEarliestTime(request.getExpectedEarliestTime() != null ?
+                    request.getExpectedEarliestTime() : LocalDateTime.now());
+            // 默认永久监控，不设置最晚时间（null表示永久）
+            entity.setExpectedLatestTime(request.getExpectedLatestTime());
+            entity.setDisasterLevel(request.getDisasterLevel() != null ? request.getDisasterLevel() : 3);
+            entity.setTaskStatus(0);
+            entity.setNotifyByEmail(1);
+            entity.setNotifyBySms(0);
+            entity.setNotifyByWechat(0);
+            entity.setAvailable(1);
+            entities.add(entity);
+        }
+
+        // 批量插入
+        reminderTaskMapper.batchInsert(entities);
+        log.info("天气订阅任务批量创建完成, 共{}个任务", entities.size());
+
+        // 返回第一个任务的ID
+        return entities.isEmpty() ? null : entities.get(0).getId();
     }
 
     /**

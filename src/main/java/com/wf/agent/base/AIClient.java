@@ -7,14 +7,19 @@ import com.wf.agent.tool.MCPPredictionTool;
 import com.wf.agent.tool.TimeTool;
 import com.wf.agent.tool.WeatherCodeTool;
 import com.wf.agent.tool.WeatherPredictionTool;
+import com.wf.object.entity.ChatHistoryEntity;
 import com.wf.object.entity.NormalizationResult;
 import com.wf.object.query.WeatherCodeQuery;
 
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.messages.AssistantMessage;
+import org.springframework.ai.chat.messages.Message;
+import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.stereotype.Service;
 
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Slf4j
@@ -59,8 +64,8 @@ public class AIClient {
         return chatClient.prompt().user(prompt).call().content();
     }
 
-    public String generateAnswer(String originalQuestion, String normalizedQuestion, String forecastResult, String activityType, String concernCondition) {
-        String prompt = promptProvider.getAnswerGenerationPrompt(originalQuestion, normalizedQuestion, forecastResult, activityType, concernCondition);
+    public String generateAnswer(String originalQuestion, String normalizedQuestion, String forecastResult, String activityType, String concernCondition, String alertCheckResult) {
+        String prompt = promptProvider.getFinalGeneratePrompt(originalQuestion, normalizedQuestion, forecastResult, null, alertCheckResult);
         return chatClient.prompt().user(prompt).call().content();
     }
 
@@ -154,5 +159,46 @@ public class AIClient {
         } catch (Exception e) {
             return 0.0;
         }
+    }
+
+    /**
+     * 构建带历史上下文的对话
+     * @param currentQuestion 当前问题
+     * @param history 历史聊天记录
+     * @return AI回复
+     */
+    public String chatWithHistory(String currentQuestion, List<ChatHistoryEntity> history) {
+        if (history == null || history.isEmpty()) {
+            return generateAnswer(currentQuestion);
+        }
+
+        // 构建消息列表
+        List<Message> messages = new ArrayList<>();
+
+        // 添加系统提示
+        String systemPrompt = """
+            你是一个天气助手。请根据用户的问题提供天气相关信息。
+            注意：如果用户的问题与之前的对话相关，请结合上下文理解用户的意图。
+            """;
+
+        // 添加历史消息
+        for (ChatHistoryEntity msg : history) {
+            if ("user".equals(msg.getRole())) {
+                messages.add(new UserMessage(msg.getContent()));
+            } else if ("assistant".equals(msg.getRole())) {
+                messages.add(new AssistantMessage(msg.getContent()));
+            }
+        }
+
+        // 添加当前问题
+        messages.add(new UserMessage(currentQuestion));
+
+        log.info("使用历史上下文进行对话，历史消息数: {}", history.size());
+
+        return chatClient.prompt()
+                .system(systemPrompt)
+                .messages(messages)
+                .call()
+                .content();
     }
 }

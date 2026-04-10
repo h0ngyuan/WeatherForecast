@@ -8,6 +8,8 @@ public interface WeatherGraphOrchestrator {
 
     WeatherAskResponse processWithThread(String question, Long userId);
 
+    WeatherAskResponse processWithThread(String question, Long userId, Long sessionId);
+
     void grantPermission(String threadId, Long userId, WeatherPermissionRequest request);
 
     WeatherAskResponse resume(String threadId, Long userId);

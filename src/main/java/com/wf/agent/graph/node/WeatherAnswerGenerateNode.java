@@ -28,6 +28,7 @@ public class WeatherAnswerGenerateNode implements NodeAction {
         String forecastResult = state.value(WeatherGraphConstants.KEY_FORECAST_RESULT, "");
         String activityType = state.value(WeatherGraphConstants.KEY_ACTIVITY_TYPE, "");
         String concernCondition = state.value(WeatherGraphConstants.KEY_CONCERN_CONDITION, "");
+        String alertCheckResult = state.value(WeatherGraphConstants.KEY_ALERT_CHECK_RESULT, "");
         Integer loopCount = state.value(WeatherGraphConstants.KEY_LOOP_COUNT, 1);
         
         log.info("当前循环次数: {}", loopCount);
@@ -36,13 +37,14 @@ public class WeatherAnswerGenerateNode implements NodeAction {
         log.info("预测结果: {}", forecastResult);
         log.info("活动类型: {}", activityType);
         log.info("关心条件: {}", concernCondition);
+        log.info("预警检查结果: {}", alertCheckResult);
 
         String answer = "";
         double qualityScore = 0.0;
         
         try {
             log.info("开始调用AI生成答案...");
-            answer = aiClient.generateAnswer(originalQuestion, normalizedQuestion, forecastResult, activityType, concernCondition);
+            answer = aiClient.generateAnswer(originalQuestion, normalizedQuestion, forecastResult, activityType, concernCondition, alertCheckResult);
             log.info("AI生成答案: {}", answer);
             
             log.info("开始调用AI评分答案质量...");

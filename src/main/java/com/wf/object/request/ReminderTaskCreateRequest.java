@@ -34,6 +34,12 @@ public class ReminderTaskCreateRequest {
     /** 监控地点 */
     private String location;
 
-    /** 预计执行时间 */
-    private LocalDateTime expectedExecTime;
+    /** 预计最早执行时间 */
+    private LocalDateTime expectedEarliestTime;
+
+    /** 预计最晚执行时间 */
+    private LocalDateTime expectedLatestTime;
+
+    /** 灾害等级：1=一级，2=二级，3=三级 */
+    private Integer disasterLevel;
 }

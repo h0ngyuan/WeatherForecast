@@ -22,6 +22,11 @@ public interface ReminderTaskMapper {
     int insert(ReminderTaskEntity entity);
 
     /**
+     * 批量插入任务
+     */
+    int batchInsert(@Param("list") List<ReminderTaskEntity> entities);
+
+    /**
      * 根据ID查询
      */
     ReminderTaskEntity selectById(Long id);
@@ -49,7 +54,7 @@ public interface ReminderTaskMapper {
     int updateAvailable(@Param("id") Long id, @Param("available") Integer available);
 
     /**
-     * 查询指定地区的一级灾害提醒任务（alwaysRemind=1）
+     * 查询指定地区的一级灾害持续监控任务
      */
     List<ReminderTaskEntity> selectLevel1TasksByLocation(@Param("location") String location);
 
