@@ -54,8 +54,8 @@ public class AIClient {
         return chatClient;
     }
 
-    public double judgeRelevance(String question) {
-        String prompt = promptProvider.getRelevanceJudgePrompt(question);
+    public double judgeRelevance(String question, List<ChatHistoryEntity> history) {
+        String prompt = promptProvider.getRelevanceJudgePrompt(question, history);
         return parseScore(chatClient.prompt().user(prompt).call().content());
     }
 

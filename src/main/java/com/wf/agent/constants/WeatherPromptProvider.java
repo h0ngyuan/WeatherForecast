@@ -6,15 +6,37 @@ import org.springframework.stereotype.Component;
 @Component
 public class WeatherPromptProvider {
 
-    public String getRelevanceJudgePrompt(String question) {
-        return """
-            请判断以下问题是否与以下领域相关：
-            1. 天气相关：天气、气象、气候、温度、降水、风力、湿度等
-            2. 天气预警相关：是否需要带伞、是否适合晒被子/洗车/户外活动、穿衣建议等与天气变化相关的活动决策
-
-            仅返回一个0到1之间的浮点数，表示相关性评分，不要包含任何其他文字。
-            问题：%s
-            """.formatted(question);
+    public String getRelevanceJudgePrompt(String question, java.util.List<com.wf.object.entity.ChatHistoryEntity> history) {
+        StringBuilder prompt = new StringBuilder();
+        prompt.append("请判断以下问题是否与天气相关。\n\n");
+        
+        // 添加历史上下文
+        if (history != null && !history.isEmpty()) {
+            prompt.append("【历史对话】\n");
+            for (com.wf.object.entity.ChatHistoryEntity msg : history) {
+                String role = "user".equals(msg.getRole()) ? "用户" : "助手";
+                prompt.append(role).append("：").append(msg.getContent()).append("\n");
+            }
+            prompt.append("\n");
+        }
+        
+        prompt.append("【当前问题】\n");
+        prompt.append(question).append("\n\n");
+        
+        prompt.append("【判断规则】\n");
+        prompt.append("1. 当前问题明确的实体（如城市名）优先于历史中的实体\n");
+        prompt.append("2. 如果当前问题是省略问法（如\"南通呢\"、\"上海呢\"、\"明天呢\"），结合历史理解为完整的天气问题\n");
+        prompt.append("3. 判断标准：\n");
+        prompt.append("   - 天气相关：天气、气象、气候、温度、降水、风力、湿度等\n");
+        prompt.append("   - 天气预警相关：是否需要带伞、是否适合户外活动、穿衣建议等\n\n");
+        
+        prompt.append("【输出要求】\n");
+        prompt.append("仅返回一个0到1之间的浮点数，表示相关性评分。\n");
+        prompt.append("- 明确天气问题：0.8-1.0\n");
+        prompt.append("- 省略问法但可推断为天气问题：0.7-0.9\n");
+        prompt.append("- 不相关：0.0-0.3\n");
+        
+        return prompt.toString();
     }
 
     public String getAnswerGenerationPrompt(String question) {

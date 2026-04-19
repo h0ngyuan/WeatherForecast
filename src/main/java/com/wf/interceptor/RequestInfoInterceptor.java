@@ -20,13 +20,16 @@ public class RequestInfoInterceptor implements HandlerInterceptor {
         // 获取完整请求信息
         Map<String, Object> requestInfo = getRequestInfoMap(request);
         
-        // 存储到 SaHolder 上下文
-        SaHolder.getStorage().set("requestInfo", requestInfo);
-        
-        // 也可以单独存储常用字段，方便快速获取
-        SaHolder.getStorage().set("clientIp", requestInfo.get("clientIp"));
-        SaHolder.getStorage().set("requestUri", requestInfo.get("requestUri"));
-        SaHolder.getStorage().set("method", requestInfo.get("method"));
+        // 存储到 SaHolder 上下文（如果上下文已初始化）
+        try {
+            SaHolder.getStorage().set("requestInfo", requestInfo);
+            SaHolder.getStorage().set("clientIp", requestInfo.get("clientIp"));
+            SaHolder.getStorage().set("requestUri", requestInfo.get("requestUri"));
+            SaHolder.getStorage().set("method", requestInfo.get("method"));
+        } catch (Exception e) {
+            // Sa-Token 上下文未初始化，忽略存储
+            log.debug("Sa-Token context not initialized, skip storage");
+        }
         
         return true;
     }
@@ -69,15 +72,21 @@ public class RequestInfoInterceptor implements HandlerInterceptor {
         // Session
         info.put("sessionId", getSessionId(request));
 
-        // Sa-Token 信息
-        info.put("tokenValue", StpUtil.getTokenValue());
-        info.put("isLogin", StpUtil.isLogin());
-        if (StpUtil.isLogin()) {
-            try {
-                info.put("loginId", StpUtil.getLoginId());
-            } catch (Exception e) {
-                // 忽略
+        // Sa-Token 信息（如果上下文已初始化）
+        try {
+            info.put("tokenValue", StpUtil.getTokenValue());
+            info.put("isLogin", StpUtil.isLogin());
+            if (StpUtil.isLogin()) {
+                try {
+                    info.put("loginId", StpUtil.getLoginId());
+                } catch (Exception e) {
+                    // 忽略
+                }
             }
+        } catch (Exception e) {
+            // Sa-Token 上下文未初始化
+            info.put("tokenValue", null);
+            info.put("isLogin", false);
         }
 
         // 时间戳

@@ -4,8 +4,13 @@ import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.wf.agent.map.WeatherImpactAgent;
+import com.wf.agent.map.entity.CityWeatherDaily;
+import com.wf.mapper.CityWeatherDailyMapper;
+import com.wf.mapper.CityInfoMapper;
 import com.wf.mapper.PredictWeatherCodeMapper;
 import com.wf.mapper.WeatherDataMapper;
+import com.wf.object.entity.CityInfoEntity;
 import com.wf.object.entity.PredictWeatherCodeEntity;
 import com.wf.object.entity.WeatherDataEntity;
 import com.wf.service.WeatherDataService;
@@ -14,10 +19,12 @@ import com.wf.utils.WeatherCodeCache;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -25,6 +32,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -38,6 +46,19 @@ public class WeatherDataServiceImpl implements WeatherDataService {
 
     @Autowired
     private PredictWeatherCodeMapper predictWeatherCodeMapper;
+
+    @Autowired
+    private CityWeatherDailyMapper cityWeatherDailyMapper;
+
+    @Autowired
+    private CityInfoMapper cityInfoMapper;
+
+    @Autowired
+    private WeatherImpactAgent weatherImpactAgent;
+
+    @Autowired
+    @org.springframework.context.annotation.Lazy
+    private WeatherDataService self;
 
     private final OkHttpClient client = new OkHttpClient.Builder()
             .connectTimeout(30, TimeUnit.SECONDS)
@@ -348,10 +369,193 @@ public class WeatherDataServiceImpl implements WeatherDataService {
 
             log.info("天气预测任务执行完成，成功保存 {} 条预测数据", predictionList.size());
 
+            // 通过代理调用异步方法，确保 @Async 生效
+            self.saveToCityWeatherDailyAsync(baseTime.toLocalDate(), predictionList);
+
         } catch (Exception e) {
             log.error("天气预测任务失败", e);
             throw new RuntimeException("天气预测任务失败", e);
         }
+    }
+
+    /**
+     * 异步保存预测数据到 city_weather_daily 表，并协同Agent分析周边影响
+     */
+    @Async
+    public void saveToCityWeatherDailyAsync(LocalDate recordDate, List<Integer> predictionList) {
+        try {
+            log.info("[Async] 开始保存到 city_weather_daily, date={}", recordDate);
+
+            // 获取所有城市
+            List<CityInfoEntity> cities = cityInfoMapper.selectList(null);
+            if (cities.isEmpty()) {
+                log.warn("[Async] 没有城市数据，跳过保存");
+                return;
+            }
+
+            // 第一步：为所有城市保存基础数据
+            for (CityInfoEntity city : cities) {
+                // 检查是否已存在
+                CityWeatherDaily existing = cityWeatherDailyMapper.selectByCityAndDate(city.getCityCode(), recordDate);
+                if (existing != null) {
+                    log.debug("[Async] 城市 {} 的 {} 数据已存在，跳过", city.getCityName(), recordDate);
+                    continue;
+                }
+
+                CityWeatherDaily daily = new CityWeatherDaily();
+                daily.setCityCode(city.getCityCode());
+                daily.setCityName(city.getCityName());
+                daily.setRecordDate(recordDate);
+                daily.setHourlyWeatherCodes(predictionList.toString());
+                daily.setHasDisaster(0); // 默认无灾害
+                daily.setCreateTime(LocalDateTime.now());
+                daily.setUpdateTime(LocalDateTime.now());
+
+                cityWeatherDailyMapper.insert(daily);
+                log.debug("[Async] 保存城市 {} 的日天气数据成功", city.getCityName());
+            }
+
+            log.info("[Async] 完成基础数据保存，开始Agent协同分析周边影响");
+
+            // 第二步：Agent协同分析周边影响（半径200公里）
+            for (CityInfoEntity city : cities) {
+                try {
+                    WeatherImpactAgent.ImpactAnalysisResult result = 
+                        weatherImpactAgent.analyzeImpact(city.getCityCode(), city.getCityName(), recordDate, 200);
+
+                    if (result.isHasImpact()) {
+                        // 更新该城市的灾害信息
+                        CityWeatherDaily daily = cityWeatherDailyMapper.selectByCityAndDate(city.getCityCode(), recordDate);
+                        if (daily != null) {
+                            daily.setHasDisaster(1);
+                            daily.setMaxDisasterLevel(result.getSuggestedLevel());
+                            daily.setDisasterTypes("周边传播风险");
+                            daily.setUpdateTime(LocalDateTime.now());
+                            cityWeatherDailyMapper.updateById(daily);
+                            log.info("[Async] 城市 {} 受周边影响，更新灾害等级: {}",
+                                city.getCityName(), result.getSuggestedLevel());
+                        }
+                    }
+                } catch (Exception e) {
+                    log.warn("[Async] 分析城市 {} 周边影响失败: {}", city.getCityName(), e.getMessage());
+                }
+            }
+
+            log.info("[Async] 完成Agent协同分析，date={}", recordDate);
+        } catch (Exception e) {
+            log.error("[Async] 保存到 city_weather_daily 失败", e);
+        }
+    }
+
+    @Override
+    @Async
+    public void saveSingleCityToDailyAsync(String cityName, String weatherCodesStr) {
+        try {
+            log.info("[Async][SingleCity] 开始写入 city_weather_daily: city={}", cityName);
+
+            if (weatherCodesStr == null || weatherCodesStr.isEmpty()) {
+                log.warn("[Async][SingleCity] 天气码为空，跳过: city={}", cityName);
+                return;
+            }
+
+            LocalDate today = LocalDate.now();
+            CityInfoEntity cityInfo = cityInfoMapper.selectByCityName(cityName);
+            if (cityInfo == null) {
+                log.warn("[Async][SingleCity] 未找到城市信息: city={}", cityName);
+                return;
+            }
+
+            if (cityInfo.getCityCode() == null || cityInfo.getCityCode().isEmpty()) {
+                log.warn("[Async][SingleCity] 城市编码为空，跳过: city={}", cityName);
+                return;
+            }
+
+            CityWeatherDaily existing = cityWeatherDailyMapper.selectByCityAndDate(cityInfo.getCityCode(), today);
+            if (existing != null) {
+                log.info("[Async][SingleCity] 数据已存在，跳过: city={}, date={}", cityName, today);
+                return;
+            }
+
+            CityWeatherDaily daily = new CityWeatherDaily();
+            daily.setCityCode(cityInfo.getCityCode());
+            daily.setCityName(cityInfo.getCityName());
+            daily.setRecordDate(today);
+            daily.setHourlyWeatherCodes(weatherCodesStr);
+
+            // 解析天气码，判断灾害
+            int[] dayCode = {0};
+            int[] maxDisasterLevel = {0};
+            boolean[] hasDisaster = {false};
+            List<String> disasterTypes = new ArrayList<>();
+
+            try {
+                String[] codes = weatherCodesStr.split(",");
+                if (codes.length > 0) {
+                    dayCode[0] = Integer.parseInt(codes[0].trim());
+                }
+                daily.setDayWeatherCode(dayCode[0]);
+
+                for (String codeStr : codes) {
+                    int code = Integer.parseInt(codeStr.trim());
+                    int level = getDisasterLevel(code);
+                    if (level > 0) {
+                        hasDisaster[0] = true;
+                        if (level > maxDisasterLevel[0]) {
+                            maxDisasterLevel[0] = level;
+                        }
+                        String type = getDisasterType(code);
+                        if (!disasterTypes.contains(type)) {
+                            disasterTypes.add(type);
+                        }
+                    }
+                }
+            } catch (NumberFormatException e) {
+                log.warn("[Async][SingleCity] 天气码解析失败: city={}, codes={}", cityName, weatherCodesStr);
+            }
+
+            daily.setHasDisaster(hasDisaster[0] ? 1 : 0);
+            daily.setMaxDisasterLevel(maxDisasterLevel[0]);
+            if (!disasterTypes.isEmpty()) {
+                daily.setDisasterTypes(String.join(",", disasterTypes));
+            }
+
+            daily.setCreateTime(LocalDateTime.now());
+            daily.setUpdateTime(LocalDateTime.now());
+
+            log.info("[Async][SingleCity] 写入 city_weather_daily: city={}, dayCode={}, hasDisaster={}, maxLevel={}",
+                    cityName, dayCode[0], hasDisaster[0], maxDisasterLevel[0]);
+
+            int rows = cityWeatherDailyMapper.insert(daily);
+            if (rows > 0) {
+                log.info("[Async][SingleCity] 写入成功: city={}, date={}, id={}", cityName, today, daily.getId());
+            } else {
+                log.warn("[Async][SingleCity] insert 返回 0: city={}", cityName);
+            }
+        } catch (Exception e) {
+            log.error("[Async][SingleCity] 写入 city_weather_daily 失败: city={}", cityName, e);
+        }
+    }
+
+    private int getDisasterLevel(int code) {
+        return switch (code) {
+            case 49, 48 -> 1;
+            case 47, 15, 33 -> 2;
+            case 46 -> 3;
+            default -> 0;
+        };
+    }
+
+    private String getDisasterType(int code) {
+        return switch (code) {
+            case 49 -> "暴雨";
+            case 48 -> "大雨";
+            case 47 -> "中雨";
+            case 46 -> "小雨";
+            case 15 -> "雷阵雨";
+            case 33 -> "雾";
+            case 75 -> "霾";
+            default -> "未知";
+        };
     }
 
     private BigDecimal getBigDecimal(JSONArray array, int index) {

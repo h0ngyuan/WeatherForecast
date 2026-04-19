@@ -98,7 +98,7 @@ onMounted(() => {
     <el-container class="settings-layout">
       <el-header class="page-header">
         <div class="header-left">
-          <el-button text @click="router.push('/')">
+          <el-button text @click="router.push('/chat')">
             <el-icon><ArrowLeft /></el-icon>
             返回
           </el-button>

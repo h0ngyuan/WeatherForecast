@@ -4,9 +4,12 @@ import com.alibaba.cloud.ai.graph.OverAllState;
 import com.alibaba.cloud.ai.graph.action.NodeAction;
 import com.wf.agent.base.AIClient;
 import com.wf.agent.constants.WeatherGraphConstants;
+import com.wf.object.entity.ChatHistoryEntity;
+import com.wf.service.ChatHistoryService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.Map;
 
 @Slf4j
@@ -14,9 +17,11 @@ import java.util.Map;
 public class WeatherRelevanceJudgeNode implements NodeAction {
 
     private final AIClient aiClient;
+    private final ChatHistoryService chatHistoryService;
 
-    public WeatherRelevanceJudgeNode(AIClient aiClient) {
+    public WeatherRelevanceJudgeNode(AIClient aiClient, ChatHistoryService chatHistoryService) {
         this.aiClient = aiClient;
+        this.chatHistoryService = chatHistoryService;
     }
 
     @Override
@@ -26,8 +31,18 @@ public class WeatherRelevanceJudgeNode implements NodeAction {
         String question = state.value(WeatherGraphConstants.KEY_QUESTION, "");
         log.info("待判断问题: {}", question);
         
+        // 获取历史上下文
+        java.util.Optional<Object> sessionIdOpt = state.value(WeatherGraphConstants.KEY_SESSION_ID);
+        Long sessionId = sessionIdOpt.map(obj -> ((Number) obj).longValue()).orElse(null);
+        
+        List<ChatHistoryEntity> history = null;
+        if (sessionId != null) {
+            history = chatHistoryService.getRecentMessages(sessionId, 3); // 获取最近3条
+            log.info("获取到 {} 条历史消息", history.size());
+        }
+        
         log.info("调用AI判断相关性...");
-        double score = aiClient.judgeRelevance(question);
+        double score = aiClient.judgeRelevance(question, history);
         log.info("相关性评分: {}", score);
         
         String nextAction = score >= WeatherGraphConstants.THRESHOLD_RELEVANCE ? 

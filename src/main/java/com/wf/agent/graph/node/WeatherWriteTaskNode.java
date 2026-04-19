@@ -34,7 +34,7 @@ public class WeatherWriteTaskNode implements NodeAction {
 
     @Override
     public Map<String, Object> apply(OverAllState state) {
-        log.info("---------- [writeTask节点] 开始执行 ----------");
+        log.info("========== [writeTask节点] 开始执行 ==========");
 
         Long userId = state.value(WeatherGraphConstants.KEY_USER_ID, 0L);
         String originalQuestion = state.value(WeatherGraphConstants.KEY_QUESTION, "");
@@ -42,25 +42,33 @@ public class WeatherWriteTaskNode implements NodeAction {
         String activityType = state.value(WeatherGraphConstants.KEY_ACTIVITY_TYPE, "");
         String concernCondition = state.value(WeatherGraphConstants.KEY_CONCERN_CONDITION, "");
 
-        log.info("用户ID: {}", userId);
-        log.info("原始问题: {}", originalQuestion);
-        log.info("预警检查结果: {}", alertCheckResult);
-        log.info("活动类型: {}", activityType);
-        log.info("关心条件: {}", concernCondition);
+        log.info("[writeTask] 用户ID: {}", userId);
+        log.info("[writeTask] 原始问题: {}", originalQuestion);
+        log.info("[writeTask] 预警检查结果: {}", alertCheckResult);
+        log.info("[writeTask] 活动类型: {}", activityType);
+        log.info("[writeTask] 关心条件: {}", concernCondition);
 
         if (userId == 0L) {
-            log.error("用户ID为空，无法创建提醒任务");
+            log.error("[writeTask] 用户ID为空，无法创建提醒任务");
             return Map.of();
         }
 
         try {
-            JSONObject alertJson = JSON.parseObject(alertCheckResult);
+            log.info("[writeTask] 开始清理 Markdown 代码块...");
+            String cleanedJson = cleanMarkdownCodeBlock(alertCheckResult);
+            log.info("[writeTask] 清理后的 JSON: {}", cleanedJson);
+
+            log.info("[writeTask] 开始解析 JSON...");
+            JSONObject alertJson = JSON.parseObject(cleanedJson);
+            log.info("[writeTask] JSON 解析成功");
+
             JSONObject reminderTask = alertJson.getJSONObject("reminderTask");
 
             if (reminderTask == null) {
-                log.warn("预警检查结果中没有reminderTask，跳过写入");
+                log.warn("[writeTask] 预警检查结果中没有 reminderTask，跳过写入");
                 return Map.of();
             }
+            log.info("[writeTask] 找到 reminderTask: {}", reminderTask);
 
             // 解析任务信息
             String taskTypeStr = reminderTask.getString("taskType");
@@ -68,9 +76,14 @@ public class WeatherWriteTaskNode implements NodeAction {
             String notifyCondition = reminderTask.getString("notifyCondition");
             String location = reminderTask.getString("location");
 
+            log.info("[writeTask] taskType={}, monitoringPeriod={}, notifyCondition={}, location={}",
+                    taskTypeStr, monitoringPeriod, notifyCondition, location);
+
             // 如果没有location，尝试从requestInfo解析
             if (location == null || location.isEmpty()) {
+                log.info("[writeTask] location 为空，尝试从 alertJson 中提取");
                 location = extractLocationFromAlertCheck(alertJson);
+                log.info("[writeTask] 提取到的 location: {}", location);
             }
 
             // 解析任务类型 (0=一次，1=总是)
@@ -103,19 +116,42 @@ public class WeatherWriteTaskNode implements NodeAction {
             request.setExpectedLatestTime(timeRange.endTime);
             request.setDisasterLevel(disasterLevel);
 
-            log.info("写入提醒任务: userId={}, location={}, taskType={}, concernCondition={}, monitoringPeriod={}",
-                    userId, location, taskType, concernConditionCode, monitoringPeriod);
+            log.info("[writeTask] 准备写入提醒任务: userId={}, location={}, taskType={}, concernCondition={}, disasterLevel={}",
+                    userId, location, taskType, concernConditionCode, disasterLevel);
+            log.info("[writeTask] 时间范围: {} 至 {}", timeRange.startTime, timeRange.endTime);
 
             Long taskId = reminderTaskService.createTask(request);
-            log.info("提醒任务写入成功, taskId={}", taskId);
+            log.info("[writeTask] 提醒任务写入成功! taskId={}", taskId);
 
         } catch (Exception e) {
-            log.error("写入提醒任务失败", e);
+            log.error("[writeTask] 写入提醒任务失败", e);
         }
 
-        log.info("---------- [writeTask节点] 执行完成 ----------");
+        log.info("========== [writeTask节点] 执行完成 ==========");
 
         return Map.of();
+    }
+
+    /**
+     * 清理 Markdown 代码块包裹
+     */
+    private String cleanMarkdownCodeBlock(String input) {
+        if (input == null || input.isEmpty()) {
+            return input;
+        }
+        String cleaned = input.trim();
+        if (cleaned.startsWith("```")) {
+            int firstNewline = cleaned.indexOf('\n');
+            if (firstNewline >= 0) {
+                cleaned = cleaned.substring(firstNewline + 1);
+            } else {
+                cleaned = cleaned.substring(3);
+            }
+        }
+        if (cleaned.endsWith("```")) {
+            cleaned = cleaned.substring(0, cleaned.length() - 3);
+        }
+        return cleaned.trim();
     }
 
     /**

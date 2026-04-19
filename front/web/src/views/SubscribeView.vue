@@ -58,7 +58,7 @@ async function handleSubmit() {
   try {
     await subscribeWeather(form.value)
     ElMessage.success('订阅创建成功')
-    router.push('/')
+    router.push('/chat')
   } catch {
     // error handled by interceptor
   } finally {
@@ -72,7 +72,7 @@ async function handleSubmit() {
     <el-container class="subscribe-layout">
       <el-header class="page-header">
         <div class="header-left">
-          <el-button text @click="router.push('/')">
+          <el-button text @click="router.push('/chat')">
             <el-icon><ArrowLeft /></el-icon>
             返回
           </el-button>

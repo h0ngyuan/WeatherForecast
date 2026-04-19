@@ -67,6 +67,29 @@ public class MCPPredictionTool {
             return null;
         }
 
+        // 重试3次
+        for (int attempt = 1; attempt <= 3; attempt++) {
+            log.info("MCP调用尝试第 {} 次", attempt);
+            String result = doGetWeatherFromMCP(latitude, longitude);
+            if (result != null && !result.isEmpty()) {
+                return result;
+            }
+            if (attempt < 3) {
+                log.warn("MCP调用失败，{}秒后重试...", attempt);
+                try {
+                    Thread.sleep(attempt * 1000L);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
+        }
+        
+        log.error("MCP调用3次均失败，返回null");
+        return null;
+    }
+    
+    private String doGetWeatherFromMCP(Double latitude, Double longitude) {
         McpSyncClient client = null;
         try {
             // 创建 WebClient.Builder 并添加 Authorization Header

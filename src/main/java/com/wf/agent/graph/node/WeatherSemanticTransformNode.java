@@ -2,6 +2,7 @@ package com.wf.agent.graph.node;
 
 import com.alibaba.cloud.ai.graph.OverAllState;
 import com.alibaba.cloud.ai.graph.action.NodeAction;
+import com.alibaba.fastjson2.JSONObject;
 import com.wf.agent.constants.WeatherGraphConstants;
 import com.wf.agent.constants.WeatherPromptProvider;
 import com.wf.agent.tool.LocationTool;
@@ -13,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.stereotype.Component;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -51,7 +53,7 @@ public class WeatherSemanticTransformNode implements NodeAction {
         List<ChatHistoryEntity> history = null;
         if (sessionId != null) {
             history = chatHistoryService.getRecentMessages(sessionId, 5); // 获取最近5条
-            log.info("获取到 {} 条历史消息", history.size());
+            log.info("获取到 {} 条历史消息", Arrays.toString(history.toArray()));
         }
 
         log.info("开始语义转化流程...");

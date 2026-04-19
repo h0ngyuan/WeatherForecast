@@ -12,6 +12,7 @@ import com.wf.object.entity.CityInfoEntity;
 import com.wf.object.entity.ReminderTaskEntity;
 import com.wf.object.entity.UserInfoEntity;
 import com.wf.service.EmailNotificationService;
+import com.wf.utils.WeatherCodeCache;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -80,7 +81,7 @@ public class WeatherEmergencyJob {
      *    - alertTextGeneration: 生成预警文本
      * 4. 根据灾害级别分流通知
      */
-    @Scheduled(cron = "0 0 0/1 * * ?")
+    @Scheduled(cron = "5 5 0 * * ?")
     public void dailyCheck() {
         log.info("========== [紧急响应] 每日天气检查任务开始 ==========");
 

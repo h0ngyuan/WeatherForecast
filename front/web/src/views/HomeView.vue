@@ -15,7 +15,6 @@ const inputMessage = ref('')
 const sending = ref(false)
 const messageListRef = ref<HTMLDivElement>()
 
-// 订阅弹窗
 const subscribeDialogVisible = ref(false)
 const subscribeFormRef = ref<FormInstance>()
 const subscribeLoading = ref(false)
@@ -98,7 +97,6 @@ function formatTime(timestamp: number) {
   })
 }
 
-// 订阅相关
 function openSubscribeDialog() {
   subscribeDialogVisible.value = true
   subscribeForm.value = {
@@ -134,10 +132,14 @@ async function handleSubscribeSubmit() {
     ElMessage.success('订阅创建成功')
     subscribeDialogVisible.value = false
   } catch {
-    // error handled by interceptor
   } finally {
     subscribeLoading.value = false
   }
+}
+
+function clearChat() {
+  chatStore.clearMessages()
+  inputMessage.value = ''
 }
 
 onMounted(() => {
@@ -158,6 +160,10 @@ onMounted(() => {
             <el-icon><Bell /></el-icon>
             <span>天气订阅</span>
           </el-button>
+          <el-button text @click="router.push('/map')">
+            <el-icon><MapLocation /></el-icon>
+            <span>地图</span>
+          </el-button>
           <el-button text @click="router.push('/settings')">
             <el-icon><Setting /></el-icon>
             <span>设置</span>
@@ -169,6 +175,10 @@ onMounted(() => {
             </span>
             <template #dropdown>
               <el-dropdown-menu>
+                <el-dropdown-item @click="clearChat">
+                  <el-icon><Delete /></el-icon>
+                  清空对话
+                </el-dropdown-item>
                 <el-dropdown-item @click="userStore.logout()">退出登录</el-dropdown-item>
               </el-dropdown-menu>
             </template>
@@ -247,7 +257,6 @@ onMounted(() => {
       </el-footer>
     </el-container>
 
-    <!-- 订阅弹窗 -->
     <el-dialog
       v-model="subscribeDialogVisible"
       title="创建天气订阅"
@@ -386,7 +395,7 @@ onMounted(() => {
   flex: 1;
   overflow-y: auto;
   padding: 24px;
-  background: #f5f7fa;
+  background: linear-gradient(180deg, #f0f4ff 0%, #f5f7fa 100%);
 }
 
 .welcome-section {
@@ -397,16 +406,24 @@ onMounted(() => {
   height: 100%;
   text-align: center;
   color: #606266;
+  animation: fadeIn 0.5s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .welcome-section h2 {
   margin: 16px 0 8px;
   color: #303133;
+  font-size: 24px;
 }
 
 .welcome-section p {
   margin-bottom: 32px;
   color: #909399;
+  font-size: 15px;
 }
 
 .quick-questions {
@@ -434,6 +451,8 @@ onMounted(() => {
 .quick-item:hover {
   border-color: #409eff;
   color: #409eff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.15);
 }
 
 .message-list {
@@ -447,6 +466,12 @@ onMounted(() => {
 .message-item {
   display: flex;
   gap: 12px;
+  animation: messageIn 0.3s ease;
+}
+
+@keyframes messageIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .message-item.user {
@@ -471,10 +496,11 @@ onMounted(() => {
   background: #fff;
   border: 1px solid #e4e7ed;
   border-top-left-radius: 4px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
 }
 
 .message-item.user .message-bubble {
-  background: #409eff;
+  background: linear-gradient(135deg, #409eff, #337ecc);
   color: #fff;
   border-top-right-radius: 4px;
 }
@@ -541,7 +567,6 @@ onMounted(() => {
   padding: 0 24px;
 }
 
-/* 订阅弹窗 - 菜单点单风格 */
 :deep(.subscribe-dialog) {
   border-radius: 12px;
 }

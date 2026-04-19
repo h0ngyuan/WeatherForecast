@@ -102,7 +102,7 @@ async function handleLogin() {
     })
     userStore.setToken(res.data)
     ElMessage.success('登录成功')
-    router.push('/')
+    router.push('/chat')
   } catch {
     fetchCaptcha()
   } finally {

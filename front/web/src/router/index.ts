@@ -5,13 +5,17 @@ const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
+      path: '/',
+      redirect: '/login',
+    },
+    {
       path: '/login',
       name: 'Login',
       component: () => import('@/views/LoginView.vue'),
       meta: { requiresAuth: false },
     },
     {
-      path: '/',
+      path: '/chat',
       name: 'Home',
       component: () => import('@/views/HomeView.vue'),
       meta: { requiresAuth: true },
@@ -28,6 +32,12 @@ const router = createRouter({
       component: () => import('@/views/SettingsView.vue'),
       meta: { requiresAuth: true },
     },
+    {
+      path: '/map',
+      name: 'Map',
+      component: () => import('@/views/MapView.vue'),
+      meta: { requiresAuth: true },
+    },
   ],
 })
 
@@ -36,7 +46,7 @@ router.beforeEach((to, _from, next) => {
   if (to.meta.requiresAuth && !userStore.isLoggedIn) {
     next('/login')
   } else if (to.path === '/login' && userStore.isLoggedIn) {
-    next('/')
+    next('/chat')
   } else {
     next()
   }
